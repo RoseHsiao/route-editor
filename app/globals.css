@@ -1,0 +1,219 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * TrailPlanner design tokens. See docs/DEVELOPMENT.md ("Design system").
+ *
+ * Neutrals are warm paper and cool ink; accents are drawn from alpine terrain:
+ * pine (primary), glacier (information), ochre (caution), rust (danger).
+ * Stage colours are a categorical palette for daily route segments on the map:
+ * adjacent days must stay distinguishable on a light basemap.
+ */
+
+@theme inline {
+  --font-sans: var(--font-inter);
+  --font-heading: var(--font-serif-display);
+  --font-mono: var(--font-mono-code);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-caution: var(--caution);
+  --color-caution-foreground: var(--caution-foreground);
+  --color-danger: var(--destructive);
+
+  --color-stage-1: var(--stage-1);
+  --color-stage-2: var(--stage-2);
+  --color-stage-3: var(--stage-3);
+  --color-stage-4: var(--stage-4);
+  --color-stage-5: var(--stage-5);
+  --color-stage-6: var(--stage-6);
+  --color-stage-7: var(--stage-7);
+  --color-stage-8: var(--stage-8);
+
+  --color-poi-accommodation: var(--poi-accommodation);
+  --color-poi-water: var(--poi-water);
+  --color-poi-food: var(--poi-food);
+  --color-poi-rest: var(--poi-rest);
+  --color-poi-transport: var(--poi-transport);
+  --color-poi-hazard: var(--poi-hazard);
+  --color-poi-pass: var(--poi-pass);
+
+  --color-elevation-line: var(--elevation-line);
+  --color-elevation-fill: var(--elevation-fill);
+  --color-trail: var(--trail);
+  --color-trail-alternative: var(--trail-alternative);
+
+  --color-chart-1: var(--stage-1);
+  --color-chart-2: var(--stage-2);
+  --color-chart-3: var(--stage-3);
+  --color-chart-4: var(--stage-4);
+  --color-chart-5: var(--stage-5);
+
+  --color-sidebar: var(--card);
+  --color-sidebar-foreground: var(--foreground);
+  --color-sidebar-primary: var(--primary);
+  --color-sidebar-primary-foreground: var(--primary-foreground);
+  --color-sidebar-accent: var(--accent);
+  --color-sidebar-accent-foreground: var(--accent-foreground);
+  --color-sidebar-border: var(--border);
+  --color-sidebar-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.982 0.005 85);
+  --foreground: oklch(0.23 0.014 250);
+  --card: oklch(0.997 0.002 85);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+
+  --primary: oklch(0.42 0.075 162);
+  --primary-foreground: oklch(0.985 0.005 85);
+  --secondary: oklch(0.945 0.016 162);
+  --secondary-foreground: oklch(0.32 0.06 162);
+  --muted: oklch(0.955 0.007 85);
+  --muted-foreground: oklch(0.5 0.014 250);
+  --accent: oklch(0.935 0.022 78);
+  --accent-foreground: oklch(0.34 0.04 60);
+  --destructive: oklch(0.55 0.165 33);
+  --border: oklch(0.9 0.009 85);
+  --input: oklch(0.88 0.01 85);
+  --ring: oklch(0.55 0.08 162);
+
+  --info: oklch(0.5 0.09 235);
+  --info-foreground: oklch(0.985 0.005 85);
+  --caution: oklch(0.74 0.135 75);
+  --caution-foreground: oklch(0.3 0.06 60);
+
+  --stage-1: oklch(0.52 0.13 252);
+  --stage-2: oklch(0.6 0.15 42);
+  --stage-3: oklch(0.52 0.1 158);
+  --stage-4: oklch(0.52 0.15 318);
+  --stage-5: oklch(0.66 0.13 85);
+  --stage-6: oklch(0.53 0.09 205);
+  --stage-7: oklch(0.56 0.17 14);
+  --stage-8: oklch(0.42 0.05 265);
+
+  --poi-accommodation: oklch(0.48 0.13 300);
+  --poi-water: oklch(0.55 0.13 240);
+  --poi-food: oklch(0.64 0.14 70);
+  --poi-rest: oklch(0.55 0.1 150);
+  --poi-transport: oklch(0.45 0.03 260);
+  --poi-hazard: oklch(0.56 0.19 28);
+  --poi-pass: oklch(0.3 0.02 250);
+
+  --elevation-line: oklch(0.42 0.075 162);
+  --elevation-fill: oklch(0.42 0.075 162 / 14%);
+  --trail: oklch(0.42 0.075 162);
+  --trail-alternative: oklch(0.5 0.014 250 / 70%);
+}
+
+.dark {
+  --background: oklch(0.19 0.012 250);
+  --foreground: oklch(0.94 0.006 85);
+  --card: oklch(0.225 0.013 250);
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+
+  --primary: oklch(0.74 0.09 162);
+  --primary-foreground: oklch(0.2 0.03 162);
+  --secondary: oklch(0.29 0.03 162);
+  --secondary-foreground: oklch(0.9 0.03 162);
+  --muted: oklch(0.26 0.012 250);
+  --muted-foreground: oklch(0.7 0.012 250);
+  --accent: oklch(0.3 0.025 70);
+  --accent-foreground: oklch(0.9 0.03 78);
+  --destructive: oklch(0.68 0.16 30);
+  --border: oklch(1 0 0 / 11%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.6 0.08 162);
+
+  --info: oklch(0.7 0.1 235);
+  --info-foreground: oklch(0.2 0.03 235);
+  --caution: oklch(0.8 0.13 78);
+  --caution-foreground: oklch(0.25 0.05 60);
+
+  --stage-1: oklch(0.7 0.12 252);
+  --stage-2: oklch(0.72 0.14 42);
+  --stage-3: oklch(0.72 0.11 158);
+  --stage-4: oklch(0.7 0.14 318);
+  --stage-5: oklch(0.8 0.12 85);
+  --stage-6: oklch(0.72 0.09 205);
+  --stage-7: oklch(0.7 0.16 14);
+  --stage-8: oklch(0.7 0.04 265);
+
+  --poi-accommodation: oklch(0.72 0.12 300);
+  --poi-water: oklch(0.72 0.12 240);
+  --poi-food: oklch(0.8 0.13 75);
+  --poi-rest: oklch(0.74 0.1 150);
+  --poi-transport: oklch(0.72 0.03 260);
+  --poi-hazard: oklch(0.7 0.17 28);
+  --poi-pass: oklch(0.88 0.01 250);
+
+  --elevation-line: oklch(0.74 0.09 162);
+  --elevation-fill: oklch(0.74 0.09 162 / 18%);
+  --trail: oklch(0.74 0.09 162);
+  --trail-alternative: oklch(0.7 0.012 250 / 70%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    font-feature-settings: "cv11", "ss01";
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  h1,
+  h2,
+  h3 {
+    @apply font-heading tracking-tight text-balance;
+  }
+}
+
+@layer utilities {
+  /* Route numbers (km, m, h) line up in lists and cards. */
+  .metric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum", "case";
+  }
+  .eyebrow {
+    @apply text-xs font-medium tracking-[0.14em] text-muted-foreground uppercase;
+  }
+}

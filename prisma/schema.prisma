@@ -1,0 +1,628 @@
+// TrailPlanner database schema.
+//
+// Conventions (see docs/DATA_MODEL.md):
+// - Tables and columns are snake_case in Postgres, camelCase in Prisma.
+// - Spatial columns use PostGIS via `Unsupported(...)`. Prisma cannot read or
+//   write them; all geometry I/O goes through parameterized SQL in lib/db/geometry.ts.
+// - CHECK constraints are not expressible in Prisma. They are appended by hand to
+//   migration SQL and documented in docs/DATA_MODEL.md. Prisma ignores them when diffing.
+// - Distances are kilometres (double precision), elevations metres.
+// - Route positions on a trail are stored in the variant's forward direction.
+//   Trek positions ("trek km") are measured from the trek's own start; see docs/ARCHITECTURE.md.
+
+generator client {
+  provider        = "prisma-client"
+  output          = "../lib/generated/prisma"
+  previewFeatures = ["postgresqlExtensions", "partialIndexes"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  extensions = [postgis]
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+/// Where a dataset or POI came from. Drives licensing and labelling rules.
+enum SourceCategory {
+  OFFICIAL
+  OPEN_DATA
+  THIRD_PARTY
+  USER_UPLOAD
+  /// Generated for development and demos. Never presented as real-world data.
+  SYNTHETIC
+
+  @@map("source_category")
+}
+
+enum DatasetVisibility {
+  PRIVATE
+  PUBLIC
+
+  @@map("dataset_visibility")
+}
+
+enum SourceFileType {
+  GPX
+  GEOJSON
+  CSV
+  OSM_OVERPASS
+
+  @@map("source_file_type")
+}
+
+enum TrailDifficulty {
+  EASY
+  MODERATE
+  CHALLENGING
+  DIFFICULT
+  ALPINE
+
+  @@map("trail_difficulty")
+}
+
+/// Origin of the elevation values in a variant profile.
+enum ElevationSource {
+  /// Elevation present in the source file, resampled and smoothed.
+  SOURCE_FILE
+  /// Digital elevation model lookup (not implemented yet; see ADR 0009).
+  DEM
+  /// No usable elevation. The profile is incomplete.
+  NONE
+
+  @@map("elevation_source")
+}
+
+enum PoiType {
+  ACCOMMODATION
+  WATER
+  FOOD
+  REST
+  TRANSPORT
+  HAZARD
+  PASS
+
+  @@map("poi_type")
+}
+
+/// Whether the POI's existence and details have been checked.
+enum VerificationStatus {
+  UNVERIFIED
+  COMMUNITY_REPORTED
+  VERIFIED
+  OUTDATED
+
+  @@map("verification_status")
+}
+
+/// How much we know about being able to stay overnight. See ADR 0006.
+/// A POI can never be USER_BOOKED; that value only applies to a trek stop.
+enum AccommodationReliability {
+  /// The user has told us they hold a booking.
+  USER_BOOKED
+  /// Availability has been confirmed for the relevant dates by a trusted source.
+  VERIFIED_AVAILABILITY
+  /// The accommodation is verified to exist and operate, but availability is unknown.
+  VERIFIED_AVAILABILITY_UNKNOWN
+  /// Nothing has been verified.
+  UNVERIFIED
+
+  @@map("accommodation_reliability")
+}
+
+enum TrekDirection {
+  FORWARD
+  REVERSE
+
+  @@map("trek_direction")
+}
+
+enum PlanningMode {
+  AUTO
+  MANUAL
+
+  @@map("planning_mode")
+}
+
+enum TrekStatus {
+  DRAFT
+  PLANNED
+  COMPLETED
+  ARCHIVED
+
+  @@map("trek_status")
+}
+
+enum FitnessLevel {
+  BEGINNER
+  INTERMEDIATE
+  EXPERIENCED
+  ATHLETIC
+
+  @@map("fitness_level")
+}
+
+enum TrekDayType {
+  HIKING
+  REST
+
+  @@map("trek_day_type")
+}
+
+/// How the current boundaries of a day were produced. See ADR 0007.
+enum DayPlanningStatus {
+  AUTO_PLANNED
+  USER_EDITED
+
+  @@map("day_planning_status")
+}
+
+enum TrekStopType {
+  OVERNIGHT
+  WATER
+  FOOD
+  REST
+  TRANSPORT
+  PERSONAL
+  NOTE
+
+  @@map("trek_stop_type")
+}
+
+enum TrekStopSource {
+  USER
+  SYSTEM_RECOMMENDATION
+
+  @@map("trek_stop_source")
+}
+
+enum ImportKind {
+  TRAIL_GEOMETRY
+  POI
+
+  @@map("import_kind")
+}
+
+enum ImportStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+
+  @@map("import_status")
+}
+
+enum ExportFormat {
+  GPX_FULL
+  GPX_DAY
+  PDF
+
+  @@map("export_format")
+}
+
+enum ExportStatus {
+  PENDING
+  GENERATING
+  SUCCEEDED
+  FAILED
+
+  @@map("export_status")
+}
+
+// ─── Users and files ────────────────────────────────────────────────────────
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  treks       Trek[]
+  files       StoredFile[]
+  importJobs  ImportJob[]
+  datasets    TrailDataset[]
+  ownedTrails Trail[]
+
+  @@map("users")
+}
+
+/// A file held in object storage (raw uploads, generated exports).
+/// The bytes live in storage; this row is the index and provenance record.
+model StoredFile {
+  id           String   @id @default(cuid())
+  ownerUserId  String?  @map("owner_user_id")
+  storageKey   String   @unique @map("storage_key")
+  originalName String?  @map("original_name")
+  mimeType     String   @map("mime_type")
+  sizeBytes    Int      @map("size_bytes")
+  sha256       String
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  owner         User?          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  importJobs    ImportJob[]
+  datasets      TrailDataset[]
+  exportRecords ExportRecord[]
+
+  @@index([sha256])
+  @@index([ownerUserId])
+  @@map("stored_files")
+}
+
+// ─── Trails ─────────────────────────────────────────────────────────────────
+
+model Trail {
+  id           String           @id @default(cuid())
+  name         String
+  slug         String           @unique
+  description  String?
+  region       String?
+  /// ISO 3166-1 alpha-2 codes.
+  countryCodes String[]         @map("country_codes")
+  /// Cached from the active dataset's main variant. Null until processed.
+  totalDistanceKm Float?        @map("total_distance_km")
+  totalAscentM    Float?        @map("total_ascent_m")
+  totalDescentM   Float?        @map("total_descent_m")
+  difficulty   TrailDifficulty?
+  isPublished  Boolean          @default(false) @map("is_published")
+  /// Null for curated platform trails; set for trails created from a user upload.
+  ownerUserId  String?          @map("owner_user_id")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+
+  owner    User?          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  datasets TrailDataset[]
+  pois     TrailPoi[]
+  treks    Trek[]
+
+  @@index([isPublished])
+  @@index([ownerUserId])
+  @@map("trails")
+}
+
+/// One imported version of a trail's data, with its provenance and licence.
+model TrailDataset {
+  id                    String            @id @default(cuid())
+  trailId               String            @map("trail_id")
+  sourceCategory        SourceCategory    @map("source_category")
+  sourceName            String            @map("source_name")
+  sourceUrl             String?           @map("source_url")
+  fileType              SourceFileType    @map("file_type")
+  /// SPDX identifier where one exists (e.g. "ODbL-1.0"), otherwise a short label. "UNKNOWN" if not established.
+  license               String
+  attributionText       String?           @map("attribution_text")
+  /// Null means unknown, which is treated as not allowed.
+  commercialUseAllowed  Boolean?          @map("commercial_use_allowed")
+  /// Null means unknown, which is treated as not allowed.
+  redistributionAllowed Boolean?          @map("redistribution_allowed")
+  licenseVerifiedAt     DateTime?         @map("license_verified_at")
+  version               Int
+  visibility            DatasetVisibility @default(PRIVATE)
+  ownerUserId           String?           @map("owner_user_id")
+  rawFileId             String?           @map("raw_file_id")
+  importedAt            DateTime          @default(now()) @map("imported_at")
+  isActive              Boolean           @default(false) @map("is_active")
+
+  trail      Trail          @relation(fields: [trailId], references: [id], onDelete: Cascade)
+  owner      User?          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  rawFile    StoredFile?    @relation(fields: [rawFileId], references: [id], onDelete: SetNull)
+  variants   TrailVariant[]
+  segments   TrailSegment[]
+  pois       TrailPoi[]
+  treks      Trek[]
+  importJobs ImportJob[]
+
+  @@unique([trailId, version])
+  /// At most one active dataset per trail.
+  @@unique([trailId], map: "trail_datasets_one_active_per_trail", where: { isActive: true })
+  @@map("trail_datasets")
+}
+
+/// A named route through the trail, built from an ordered list of segments.
+/// Geometry is not stored here; it is assembled from segments. See ADR 0002.
+model TrailVariant {
+  id          String   @id @default(cuid())
+  datasetId   String   @map("dataset_id")
+  name        String
+  description String?
+  isMain      Boolean  @default(false) @map("is_main")
+  isActive    Boolean  @default(true) @map("is_active")
+  distanceKm  Float?   @map("distance_km")
+  ascentM     Float?   @map("ascent_m")
+  descentM    Float?   @map("descent_m")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  dataset      TrailDataset     @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  segments     VariantSegment[]
+  profile      VariantProfile?
+  poiPositions PoiPosition[]
+  treks        Trek[]
+
+  /// Exactly zero or one main variant per dataset.
+  @@unique([datasetId], map: "trail_variants_one_main_per_dataset", where: { isMain: true })
+  @@index([datasetId])
+  @@map("trail_variants")
+}
+
+/// A continuous piece of normalized trail geometry. The only place route geometry is stored.
+model TrailSegment {
+  id         String @id @default(cuid())
+  datasetId  String @map("dataset_id")
+  /// Order within the dataset as imported.
+  sequence   Int
+  /// LINESTRING (2D) or LINESTRING Z (with elevation), SRID 4326. Z is present only
+  /// when every vertex has elevation; see has_elevation and docs/DATA_MODEL.md.
+  /// Untyped column because a PostGIS typmod fixes the dimension; type, SRID and
+  /// dimension are enforced by CHECK constraints instead.
+  geometry   Unsupported("geometry")
+  hasElevation Boolean @map("has_elevation")
+  distanceKm Float  @map("distance_km")
+  /// Null when elevation is missing or incomplete. Never fabricated.
+  ascentM    Float? @map("ascent_m")
+  descentM   Float? @map("descent_m")
+
+  dataset  TrailDataset     @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  variants VariantSegment[]
+
+  @@unique([datasetId, sequence])
+  @@index([geometry], type: Gist)
+  @@map("trail_segments")
+}
+
+/// Places a segment within a variant. Variants that share a section share its segment.
+model VariantSegment {
+  variantId       String  @map("variant_id")
+  segmentId       String  @map("segment_id")
+  sequence        Int
+  /// True when the segment is traversed against its stored vertex order.
+  reversed        Boolean @default(false)
+  startDistanceKm Float   @map("start_distance_km")
+  endDistanceKm   Float   @map("end_distance_km")
+
+  variant TrailVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  segment TrailSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, sequence])
+  @@index([segmentId])
+  @@map("variant_segments")
+}
+
+/// Resampled distance/elevation profile of a variant: the planning engine's input.
+/// Derived data, rebuilt by the geo worker from segments; see docs/DATA_MODEL.md.
+model VariantProfile {
+  variantId        String          @id @map("variant_id")
+  schemaVersion    Int             @map("schema_version")
+  processorVersion String          @map("processor_version")
+  sampleSpacingM   Float           @map("sample_spacing_m")
+  /// Cumulative forward distance of each sample, km. Starts at 0, strictly increasing.
+  distancesKm      Float[]         @map("distances_km")
+  /// Smoothed elevation per sample, metres. Empty when elevationComplete is false.
+  elevationsM      Float[]         @map("elevations_m")
+  elevationSource  ElevationSource @map("elevation_source")
+  elevationComplete Boolean        @map("elevation_complete")
+  /// Smoothing and resampling parameters actually used, for reproducibility.
+  processingParams Json            @map("processing_params")
+  computedAt       DateTime        @default(now()) @map("computed_at")
+
+  variant TrailVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@map("variant_profiles")
+}
+
+// ─── Points of interest ─────────────────────────────────────────────────────
+
+model TrailPoi {
+  id                 String             @id @default(cuid())
+  trailId            String             @map("trail_id")
+  datasetId          String?            @map("dataset_id")
+  /// Identifier in the source (e.g. "osm:node/123"), used for provenance and de-duplication.
+  sourceRef          String?            @map("source_ref")
+  name               String
+  type               PoiType
+  latitude           Float
+  longitude          Float
+  /// Kept in sync with latitude/longitude by a trigger; see migration SQL.
+  location           Unsupported("geometry(Point, 4326)")?
+  elevationM         Float?             @map("elevation_m")
+  sourceCategory     SourceCategory     @map("source_category")
+  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
+  lastVerifiedAt     DateTime?          @map("last_verified_at")
+  /// Accommodation only. Never USER_BOOKED (enforced by CHECK). See ADR 0006.
+  accommodationReliability AccommodationReliability? @map("accommodation_reliability")
+  /// Inclusive season window as "MM-DD". Both null means unknown, not year-round.
+  seasonStart        String?            @map("season_start")
+  seasonEnd          String?            @map("season_end")
+  /// Type-specific details (capacity, contact, opening notes). Validated in the service layer.
+  attributes         Json               @default("{}")
+  isActive           Boolean            @default(true) @map("is_active")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  trail     Trail         @relation(fields: [trailId], references: [id], onDelete: Cascade)
+  dataset   TrailDataset? @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+  positions PoiPosition[]
+  trekStops TrekStop[]
+
+  @@unique([datasetId, sourceRef])
+  @@index([trailId, type])
+  @@index([location], type: Gist)
+  @@map("trail_pois")
+}
+
+/// Linear reference of a POI on one variant (the same hut has a different km on each variant).
+model PoiPosition {
+  poiId           String @map("poi_id")
+  variantId       String @map("variant_id")
+  routeDistanceKm Float  @map("route_distance_km")
+  /// Straight-line distance from the trail to the POI, metres.
+  offsetM         Float  @map("offset_m")
+
+  poi     TrailPoi     @relation(fields: [poiId], references: [id], onDelete: Cascade)
+  variant TrailVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@id([poiId, variantId])
+  @@index([variantId, routeDistanceKm])
+  @@map("poi_positions")
+}
+
+// ─── Treks ──────────────────────────────────────────────────────────────────
+
+model Trek {
+  id           String        @id @default(cuid())
+  userId       String        @map("user_id")
+  trailId      String        @map("trail_id")
+  datasetId    String        @map("dataset_id")
+  variantId    String        @map("variant_id")
+  name         String
+  startDate    DateTime      @map("start_date") @db.Date
+  direction    TrekDirection @default(FORWARD)
+  planningMode PlanningMode  @default(AUTO) @map("planning_mode")
+  status       TrekStatus    @default(DRAFT)
+  fitnessLevel FitnessLevel  @default(INTERMEDIATE) @map("fitness_level")
+  targetDays        Int?     @map("target_days")
+  targetDistanceKm  Float?   @map("target_distance_km")
+  maxDistanceKm     Float?   @map("max_distance_km")
+  maxAscentM        Float?   @map("max_ascent_m")
+  maxDescentM       Float?   @map("max_descent_m")
+  targetMovingHours Float?   @map("target_moving_hours")
+  maxMovingHours    Float?   @map("max_moving_hours")
+  recommendationsEnabled Boolean @default(true) @map("recommendations_enabled")
+  /// Incremented on every itinerary change. Exports record the version they were built from.
+  itineraryVersion Int       @default(1) @map("itinerary_version")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trail   Trail         @relation(fields: [trailId], references: [id], onDelete: Restrict)
+  dataset TrailDataset  @relation(fields: [datasetId], references: [id], onDelete: Restrict)
+  variant TrailVariant  @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  days    TrekDay[]
+  stops   TrekStop[]
+  exports ExportRecord[]
+
+  @@index([userId, updatedAt(sort: Desc)])
+  @@map("treks")
+}
+
+/// One calendar day of a trek. Metrics are always computed by the server from
+/// the route profile; they are never accepted from clients.
+model TrekDay {
+  id        String      @id @default(cuid())
+  trekId    String      @map("trek_id")
+  /// 1-based. The date is startDate + (dayNumber - 1).
+  dayNumber Int         @map("day_number")
+  dayType   TrekDayType @default(HIKING) @map("day_type")
+  /// Trek km (from the trek's start, in its direction). Equal for rest days.
+  startDistanceKm Float @map("start_distance_km")
+  endDistanceKm   Float @map("end_distance_km")
+  plannedDistanceKm      Float  @map("planned_distance_km")
+  /// Null when the route's elevation is incomplete.
+  plannedAscentM         Float? @map("planned_ascent_m")
+  plannedDescentM        Float? @map("planned_descent_m")
+  maxElevationM          Float? @map("max_elevation_m")
+  estimatedMovingMinutes Int?   @map("estimated_moving_minutes")
+  plannedRestMinutes     Int    @default(0) @map("planned_rest_minutes")
+  overnightStopId String?           @unique @map("overnight_stop_id")
+  planningStatus  DayPlanningStatus @default(AUTO_PLANNED) @map("planning_status")
+  /// Locked days are never changed by recalculation. Manual edits lock automatically (ADR 0007).
+  isLocked        Boolean           @default(false) @map("is_locked")
+  notes           String?
+  createdAt       DateTime          @default(now()) @map("created_at")
+  updatedAt       DateTime          @updatedAt @map("updated_at")
+
+  trek          Trek      @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  overnightStop TrekStop? @relation("DayOvernightStop", fields: [overnightStopId], references: [id], onDelete: SetNull)
+
+  @@unique([trekId, dayNumber])
+  @@map("trek_days")
+}
+
+/// A place on a trek: booked or recommended accommodation, personal POIs, notes.
+model TrekStop {
+  id       String         @id @default(cuid())
+  trekId   String         @map("trek_id")
+  /// Optional: user bookings may be at places that are not in our POI data.
+  poiId    String?        @map("poi_id")
+  name     String
+  stopType TrekStopType   @map("stop_type")
+  source   TrekStopSource
+  /// Required for overnight stops. System recommendations can never be USER_BOOKED (CHECK).
+  reliability AccommodationReliability?
+  /// For fixed accommodation: the night the user arrives.
+  arrivalDate     DateTime? @map("arrival_date") @db.Date
+  /// Trek km of the point where the stop is reached from the trail.
+  routeDistanceKm Float     @map("route_distance_km")
+  latitude        Float
+  longitude       Float
+  notes           String?
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  trek         Trek      @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  poi          TrailPoi? @relation(fields: [poiId], references: [id], onDelete: SetNull)
+  overnightFor TrekDay?  @relation("DayOvernightStop")
+
+  @@index([trekId, routeDistanceKm])
+  @@map("trek_stops")
+}
+
+// ─── Jobs and exports ───────────────────────────────────────────────────────
+
+/// Work queue for the geo worker. Claimed with SELECT ... FOR UPDATE SKIP LOCKED.
+model ImportJob {
+  id          String       @id @default(cuid())
+  kind        ImportKind
+  status      ImportStatus @default(PENDING)
+  ownerUserId String?      @map("owner_user_id")
+  /// Target trail for the import (existing trail, or the one created for it).
+  trailId     String?      @map("trail_id")
+  fileId      String       @map("file_id")
+  /// The dataset produced by a successful import.
+  datasetId   String?      @map("dataset_id")
+  /// Provenance the user declared at upload: source name, URL, licence.
+  sourceInfo  Json         @map("source_info")
+  /// Import options (e.g. variant names, gap tolerance).
+  options     Json         @default("{}")
+  /// Structured validation report written by the worker.
+  validation  Json?
+  /// Structured errors (code, message, location). Empty on success.
+  errors      Json         @default("[]")
+  attempts    Int          @default(0)
+  lockedBy    String?      @map("locked_by")
+  lockedAt    DateTime?    @map("locked_at")
+  startedAt   DateTime?    @map("started_at")
+  finishedAt  DateTime?    @map("finished_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  owner   User?         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  file    StoredFile    @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  dataset TrailDataset? @relation(fields: [datasetId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([ownerUserId])
+  @@map("import_jobs")
+}
+
+model ExportRecord {
+  id               String       @id @default(cuid())
+  trekId           String       @map("trek_id")
+  format           ExportFormat
+  /// Set for GPX_DAY exports only.
+  dayNumber        Int?         @map("day_number")
+  status           ExportStatus @default(PENDING)
+  itineraryVersion Int          @map("itinerary_version")
+  /// Hash of every input to the export (itinerary, geometry, generator version).
+  inputHash        String       @map("input_hash")
+  fileId           String?      @map("file_id")
+  error            String?
+  createdAt        DateTime     @default(now()) @map("created_at")
+
+  trek Trek        @relation(fields: [trekId], references: [id], onDelete: Cascade)
+  file StoredFile? @relation(fields: [fileId], references: [id], onDelete: SetNull)
+
+  @@index([trekId, createdAt(sort: Desc)])
+  @@index([inputHash])
+  @@map("export_records")
+}
