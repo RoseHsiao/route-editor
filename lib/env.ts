@@ -25,7 +25,7 @@ const serverEnvSchema = z
     S3_FORCE_PATH_STYLE: booleanString,
 
     AUTH_DEV_STUB: booleanString,
-    AUTH_DEV_STUB_EMAIL: z.string().email().default("dev@trailplanner.local"),
+    AUTH_DEV_STUB_EMAIL: z.string().email().default("dev@routeeditor.local"),
   })
   .superRefine((env, ctx) => {
     if (env.STORAGE_DRIVER === "s3" && !env.S3_BUCKET) {

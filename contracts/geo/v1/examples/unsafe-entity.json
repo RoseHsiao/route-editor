@@ -1,0 +1,28 @@
+{
+ "fixture": "fixtures/synthetic/unsafe-entity.gpx",
+ "outcome": "FAILED",
+ "normalized": null,
+ "report": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "FAILED",
+  "source": {
+   "format": "GPX"
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {},
+  "lines": [],
+  "issues": [
+   {
+    "code": "UNSAFE_XML",
+    "severity": "error",
+    "message": "The file uses XML features that are not accepted (DTDs or entities).",
+    "location": null,
+    "details": {}
+   }
+  ]
+ }
+}

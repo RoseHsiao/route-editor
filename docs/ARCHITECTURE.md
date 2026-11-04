@@ -1,6 +1,6 @@
 # Architecture
 
-TrailPlanner is a **modular monolith** (a Next.js application with a TypeScript
+RouteEditor is a **modular monolith** (a Next.js application with a TypeScript
 service layer) plus **one separately deployable Python worker** for geospatial
 processing. The PostgreSQL/PostGIS database is the only integration point between
 the two. See [ADR 0001](adr/0001-modular-monolith-with-python-worker.md).
@@ -26,7 +26,7 @@ PostgreSQL + PostGIS  ◄──────  Python geo worker (workers/geo-proc
 
 | Domain | Code |
 |---|---|
-| Trail management, trail data import | `lib/trail`, `lib/import`, `services/TrailDataService` (M2), worker |
+| Trail management, trail data import | `lib/trail`, `lib/import` (pure: contract, upload rules, view model), `services/trail-data` (imports, route view), worker. See [IMPORT_PIPELINE.md](IMPORT_PIPELINE.md) |
 | Geospatial processing | `workers/geo-processing` (heavy work), `lib/geo` (pure helpers), `lib/db/geometry.ts` (SQL) |
 | Points of interest | `lib/trail`, worker (M3) |
 | Trek management and planning | `lib/trek`, `lib/planning`, `services/TrekPlanningService` (M4–M6) |
@@ -38,7 +38,7 @@ PostgreSQL + PostGIS  ◄──────  Python geo worker (workers/geo-proc
 
 These are enforced by ESLint (`eslint.config.mjs`):
 
-- **Pure modules** (`lib/planning`, `lib/geo`, `lib/accommodation`) must not import Next.js, React,
+- **Pure modules** (`lib/planning`, `lib/geo`, `lib/accommodation`, `lib/import`) must not import Next.js, React,
   Prisma, `lib/db`, `lib/storage`, services, or Node I/O. They are deterministic and unit-tested
   without a database.
 - **UI code** (`app/**`, `components/**`) must not import the generated Prisma client directly.
@@ -73,10 +73,15 @@ without exposing any configuration.
 ## Background work
 
 The worker polls `import_jobs`. Claiming a job is a single `UPDATE … WHERE id = (SELECT …
-FOR UPDATE SKIP LOCKED)`, so several workers can run safely side by side. Failures are
-recorded as structured `{code, message, details}` objects that the UI can show. Unexpected
-exceptions are reported as `INTERNAL_ERROR`, and their stack traces stay in the worker logs.
-No Redis or separate queue is needed at this scale.
+FOR UPDATE SKIP LOCKED)`, so several workers can run safely side by side. Each claim issues
+a lease token; every later write is conditional on it, and results are published in one
+transaction that verifies the lease ([ADR 0011](adr/0011-import-job-leases.md)). Failures are
+recorded as structured `{code, message, details, retryable}` objects that the UI can show.
+Unexpected exceptions are reported as `INTERNAL_ERROR`, and their stack traces stay in the
+worker logs. No Redis or separate queue is needed at this scale.
+
+The JSON the worker writes (validation reports, errors, profile shape) follows the versioned
+contract in [`contracts/geo/`](../contracts/geo/README.md), tested in both languages.
 
 ## Deployment
 

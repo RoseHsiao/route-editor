@@ -14,5 +14,6 @@ Short records of decisions with significant consequences. Status is one of: Prop
 | [0008](0008-pdf-vector-maps.md) | PDF maps as deterministic SVG without basemap tiles | Accepted |
 | [0009](0009-elevation-processing.md) | Elevation from source files; DEM deferred | Accepted |
 | [0010](0010-code-license.md) | Apache-2.0 for code, separate from data | Accepted |
+| [0011](0011-import-job-leases.md) | Import job leases and atomic publication | Accepted |
 
 To add a record, copy the structure of an existing one: Context, Decision, Consequences.

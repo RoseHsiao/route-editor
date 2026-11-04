@@ -1,6 +1,6 @@
-# TrailPlanner
+# RouteEditor
 
-TrailPlanner is an open-source planner for multi-day hikes and long-distance treks.
+RouteEditor is an open-source planner for multi-day hikes and long-distance treks.
 It starts from existing trail data, not from routes you draw yourself. It splits a
 trail into daily stages that fit your limits and your accommodation bookings, and
 then lets you shape each day yourself.

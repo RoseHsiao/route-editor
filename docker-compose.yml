@@ -1,4 +1,4 @@
-# Local development services for TrailPlanner.
+# Local development services for RouteEditor.
 # Not intended for production. Credentials here are local-only defaults.
 #
 # The default image is the multi-arch (amd64 + arm64) build of docker-postgis,

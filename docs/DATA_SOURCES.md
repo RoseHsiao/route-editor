@@ -33,6 +33,14 @@ and unknown is treated as not allowed. The database refuses to make a dataset pu
   gitignored `fixtures/private/` folder. It must never be committed, seeded, or redistributed.
   `.gitignore` also blocks any file with "tmbmap" in its name.
 
+## User imports (M2)
+
+Uploaders declare the origin of each file: their own recording (`USER_UPLOAD`), another
+website or app (`THIRD_PARTY`), or open data (`OPEN_DATA`, attribution required). `OFFICIAL`
+and `SYNTHETIC` cannot be declared at upload. Imported datasets are always `PRIVATE`, the raw
+file is kept unchanged with its SHA-256, and the route page says that imported data is not
+official trail data. See [IMPORT_PIPELINE.md](IMPORT_PIPELINE.md#provenance).
+
 ## OpenStreetMap (planned, M3)
 
 An opt-in script will import the Tour du Mont Blanc route relation and nearby huts, springs,
@@ -70,6 +78,6 @@ use.
 
 | Source | Licence | Verified |
 |---|---|---|
-| Synthetic fixtures (TrailPlanner) | CC0-1.0 | n/a, generated |
+| Synthetic fixtures (RouteEditor, `fixtures/synthetic/`) | CC0-1.0 | n/a, generated |
 | OpenStreetMap | ODbL-1.0 | to be verified at M3 |
 | OpenFreeMap (development basemap) | OSM data, ODbL; see provider terms | to be verified before production |

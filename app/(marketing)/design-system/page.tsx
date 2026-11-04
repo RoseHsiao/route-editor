@@ -19,7 +19,7 @@ export default function DesignSystemPage() {
         <p className="eyebrow">Reference</p>
         <h1 className="text-4xl font-semibold">Design system</h1>
         <p className="text-muted-foreground">
-          Tokens and components used across TrailPlanner. Values on this page are examples, not trail data.
+          Tokens and components used across RouteEditor. Values on this page are examples, not trail data.
         </p>
       </header>
 

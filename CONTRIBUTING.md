@@ -1,6 +1,6 @@
-# Contributing to TrailPlanner
+# Contributing to RouteEditor
 
-Thanks for your interest. TrailPlanner is in early development, so please open an
+Thanks for your interest. RouteEditor is in early development, so please open an
 issue to discuss a change before you start on anything substantial.
 
 ## Ground rules

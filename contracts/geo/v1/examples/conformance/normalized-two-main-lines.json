@@ -1,0 +1,197 @@
+{
+ "definition": "normalizedImport",
+ "expect": "invalid",
+ "reason": "exactly one main line",
+ "document": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "lines": [
+   {
+    "sourceIndex": 0,
+    "sourceKind": "TRACK",
+    "name": "Track 1",
+    "isMain": true,
+    "sourceMetadata": {},
+    "distanceKm": 0.025,
+    "ascentM": 1.0,
+    "descentM": 0.0,
+    "elevationComplete": true,
+    "segments": [
+     {
+      "sourcePartIndex": 0,
+      "pointCount": 2,
+      "elevationPointCount": 2,
+      "hasElevation": true,
+      "distanceKm": 0.025,
+      "ascentM": 1.0,
+      "descentM": 0.0,
+      "coordinates": [
+       [
+        6.85,
+        45.8,
+        1000.0
+       ],
+       [
+        6.85,
+        45.800225,
+        1001.0
+       ]
+      ]
+     }
+    ],
+    "profile": {
+     "schemaVersion": 1,
+     "sampleSpacingM": 25.0,
+     "distancesKm": [
+      0.0,
+      0.025,
+      0.05,
+      0.05,
+      0.075
+     ],
+     "elevationsM": [
+      1000.0,
+      1001.0,
+      1002.0,
+      1010.0,
+      1011.0
+     ],
+     "elevationSource": "SOURCE_FILE",
+     "elevationComplete": true,
+     "segmentStartIndices": [
+      0,
+      3
+     ],
+     "processingParams": {
+      "distance": {
+       "method": "geodesic",
+       "ellipsoid": "WGS84"
+      },
+      "resampling": {
+       "method": "linear_interpolation",
+       "spacingM": 25.0,
+       "includeSegmentEnd": true
+      },
+      "smoothing": {
+       "method": "centered_moving_average",
+       "windowSamples": 7,
+       "edges": "shrink_window"
+      },
+      "ascent": {
+       "method": "sum_of_positive_differences",
+       "thresholdM": 0.0,
+       "acrossSegmentBreaks": false
+      }
+     }
+    }
+   },
+   {
+    "sourceIndex": 0,
+    "sourceKind": "TRACK",
+    "name": "Track 1",
+    "isMain": true,
+    "sourceMetadata": {},
+    "distanceKm": 0.025,
+    "ascentM": 1.0,
+    "descentM": 0.0,
+    "elevationComplete": true,
+    "segments": [
+     {
+      "sourcePartIndex": 0,
+      "pointCount": 2,
+      "elevationPointCount": 2,
+      "hasElevation": true,
+      "distanceKm": 0.025,
+      "ascentM": 1.0,
+      "descentM": 0.0,
+      "coordinates": [
+       [
+        6.85,
+        45.8,
+        1000.0
+       ],
+       [
+        6.85,
+        45.800225,
+        1001.0
+       ]
+      ]
+     }
+    ],
+    "profile": {
+     "schemaVersion": 1,
+     "sampleSpacingM": 25.0,
+     "distancesKm": [
+      0.0,
+      0.025,
+      0.05,
+      0.05,
+      0.075
+     ],
+     "elevationsM": [
+      1000.0,
+      1001.0,
+      1002.0,
+      1010.0,
+      1011.0
+     ],
+     "elevationSource": "SOURCE_FILE",
+     "elevationComplete": true,
+     "segmentStartIndices": [
+      0,
+      3
+     ],
+     "processingParams": {
+      "distance": {
+       "method": "geodesic",
+       "ellipsoid": "WGS84"
+      },
+      "resampling": {
+       "method": "linear_interpolation",
+       "spacingM": 25.0,
+       "includeSegmentEnd": true
+      },
+      "smoothing": {
+       "method": "centered_moving_average",
+       "windowSamples": 7,
+       "edges": "shrink_window"
+      },
+      "ascent": {
+       "method": "sum_of_positive_differences",
+       "thresholdM": 0.0,
+       "acrossSegmentBreaks": false
+      }
+     }
+    }
+   }
+  ],
+  "waypoints": [],
+  "report": {
+   "contractVersion": 1,
+   "processorVersion": "trailworker/0.2.0",
+   "outcome": "SUCCEEDED",
+   "source": {
+    "format": "GPX"
+   },
+   "options": {
+    "gapWarnM": 100.0,
+    "gapFailM": 1000.0
+   },
+   "summary": {},
+   "lines": [],
+   "issues": [
+    {
+     "code": "LARGE_GAP",
+     "severity": "warning",
+     "message": "Gap.",
+     "location": {
+      "lineIndex": 0,
+      "lat": 45.8,
+      "lon": 6.85
+     },
+     "details": {}
+    }
+   ]
+  }
+ }
+}

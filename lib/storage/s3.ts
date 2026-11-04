@@ -10,7 +10,7 @@ import {
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 import { assertValidStorageKey } from "./keys";
-import type { PresignedUpload, PutObjectOptions, StorageAdapter, StoredObject } from "./types";
+import type { ObjectHead, PresignedUpload, PutObjectOptions, StorageAdapter, StoredObject, UploadUrlOptions } from "./types";
 
 export interface S3StorageConfig {
   bucket: string;
@@ -64,21 +64,52 @@ export class S3StorageAdapter implements StorageAdapter {
     }
   }
 
+  async head(key: string): Promise<ObjectHead | null> {
+    assertValidStorageKey(key);
+    try {
+      const response = await this.client.send(
+        new HeadObjectCommand({ Bucket: this.bucket, Key: key, ChecksumMode: "ENABLED" }),
+      );
+      return {
+        sizeBytes: response.ContentLength ?? 0,
+        // Only a full-object SHA-256 counts; multipart composite checksums contain "-".
+        sha256:
+          response.ChecksumSHA256 && !response.ChecksumSHA256.includes("-")
+            ? Buffer.from(response.ChecksumSHA256, "base64").toString("hex")
+            : null,
+      };
+    } catch (error) {
+      if (error instanceof NotFound) return null;
+      throw error;
+    }
+  }
+
   async delete(key: string): Promise<void> {
     assertValidStorageKey(key);
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
-  async createUploadUrl(
-    key: string,
-    options: PutObjectOptions & { expiresInSeconds: number },
-  ): Promise<PresignedUpload> {
+  async createUploadUrl(key: string, options: UploadUrlOptions): Promise<PresignedUpload> {
     assertValidStorageKey(key);
-    const command = new PutObjectCommand({ Bucket: this.bucket, Key: key, ContentType: options.contentType });
-    const url = await getSignedUrl(this.client, command, { expiresIn: options.expiresInSeconds });
+    const checksum = Buffer.from(options.sha256, "hex").toString("base64");
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: options.contentType,
+      ContentLength: options.sizeBytes,
+      ChecksumSHA256: checksum,
+    });
+    // The checksum and length headers are signed, so the upload must match them exactly.
+    const url = await getSignedUrl(this.client, command, {
+      expiresIn: options.expiresInSeconds,
+      unhoistableHeaders: new Set(["x-amz-checksum-sha256"]),
+    });
     return {
       url,
-      headers: { "Content-Type": options.contentType },
+      headers: {
+        "Content-Type": options.contentType,
+        "x-amz-checksum-sha256": checksum,
+      },
       expiresAt: new Date(Date.now() + options.expiresInSeconds * 1000),
     };
   }

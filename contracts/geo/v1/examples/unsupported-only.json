@@ -1,0 +1,59 @@
+{
+ "fixture": "fixtures/synthetic/unsupported-only.geojson",
+ "outcome": "FAILED",
+ "normalized": null,
+ "report": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "FAILED",
+  "source": {
+   "format": "GEOJSON",
+   "crs": {
+    "declared": null,
+    "source": "OGC:CRS84",
+    "target": "OGC:CRS84",
+    "reprojected": false
+   },
+   "metadata": {
+    "name": "SYNTHETIC RouteEditor fixture (CC0-1.0). Not a real trail."
+   }
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {
+   "lines": {
+    "TRACK": 0,
+    "ROUTE": 0,
+    "LINE": 0
+   },
+   "segments": 0,
+   "waypoints": 0,
+   "pointsRead": 0,
+   "pointsKept": 0,
+   "duplicatesRemoved": 0
+  },
+  "lines": [],
+  "issues": [
+   {
+    "code": "UNSUPPORTED_GEOMETRY",
+    "severity": "warning",
+    "message": "Polygon geometries are not routes and were skipped.",
+    "location": {
+     "featureIndex": 0
+    },
+    "details": {
+     "geometryType": "Polygon"
+    }
+   },
+   {
+    "code": "NO_ROUTE_GEOMETRY",
+    "severity": "error",
+    "message": "The file contains no track, route or line with at least two distinct points.",
+    "location": null,
+    "details": {}
+   }
+  ]
+ }
+}

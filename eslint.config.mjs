@@ -4,7 +4,7 @@ import nextTs from "eslint-config-next/typescript";
 
 // Pure domain modules: deterministic, unit-testable, no framework or I/O.
 // See docs/ARCHITECTURE.md ("Module boundaries").
-const PURE_MODULES = ["lib/planning/**", "lib/geo/**", "lib/accommodation/**"];
+const PURE_MODULES = ["lib/planning/**", "lib/geo/**", "lib/accommodation/**", "lib/import/**"];
 
 const eslintConfig = defineConfig([
   ...nextVitals,

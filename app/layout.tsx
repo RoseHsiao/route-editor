@@ -10,7 +10,7 @@ const serif = Source_Serif_4({ variable: "--font-serif-display", subsets: ["lati
 const mono = JetBrains_Mono({ variable: "--font-mono-code", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: { default: "TrailPlanner", template: "%s · TrailPlanner" },
+  title: { default: "RouteEditor", template: "%s · RouteEditor" },
   description: "Plan multi-day hikes and long-distance treks, one stage at a time.",
 };
 

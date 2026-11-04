@@ -1,14 +1,16 @@
 [project]
-name = "trailplanner-geo-worker"
-version = "0.1.0"
-description = "TrailPlanner geospatial processing worker: import, validation and route profiles."
+name = "routeeditor-geo-worker"
+version = "0.2.0"
+description = "RouteEditor geospatial processing worker: import, validation and route profiles."
 license = "Apache-2.0"
 requires-python = ">=3.12"
 dependencies = [
-  "gpxpy>=1.6.2,<2",
   "shapely>=2.2,<3",
   "pyproj>=3.8,<4",
   "psycopg[binary]>=3.3,<4",
+  "defusedxml>=0.7.1,<1",
+  "boto3>=1.40,<2",
+  "numpy>=2.2,<3",
 ]
 # GeoPandas and Rasterio are added when they are first needed (DEM fallback is
 # deferred; see docs/adr/0009-elevation-processing.md).
@@ -21,6 +23,10 @@ dev = [
   "pytest>=9.2",
   "ruff>=0.17",
   "mypy>=2.4",
+  "jsonschema>=4.25,<5",
+  "types-defusedxml>=0.7.0.20260504",
+  "boto3-stubs[s3]>=1.43.123",
+  "types-jsonschema>=4.26.0.20261006",
 ]
 
 [build-system]
@@ -44,7 +50,7 @@ select = ["E", "F", "W", "I", "B", "UP", "N", "S", "RUF", "SIM", "PTH"]
 ignore = []
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S101", "S105", "S106"]
+"tests/**" = ["S101", "S105", "S106", "E501"]
 
 [tool.mypy]
 files = ["src", "tests"]

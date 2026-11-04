@@ -28,7 +28,7 @@ export interface ReliabilityInfo {
 export const RELIABILITY_INFO: Record<AccommodationReliability, ReliabilityInfo> = {
   USER_BOOKED: {
     label: "Booked",
-    description: "You told us you hold a booking here. TrailPlanner has not checked it.",
+    description: "You told us you hold a booking here. RouteEditor has not checked it.",
     isBooking: true,
     availabilityConfirmed: true,
     tone: "booked",

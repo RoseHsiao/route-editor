@@ -1,0 +1,49 @@
+{
+ "definition": "profile",
+ "expect": "invalid",
+ "reason": "a repeated distance must be a segment start",
+ "document": {
+  "schemaVersion": 1,
+  "sampleSpacingM": 25.0,
+  "distancesKm": [
+   0.0,
+   0.025,
+   0.05,
+   0.05,
+   0.075
+  ],
+  "elevationsM": [
+   1000.0,
+   1001.0,
+   1002.0,
+   1010.0,
+   1011.0
+  ],
+  "elevationSource": "SOURCE_FILE",
+  "elevationComplete": true,
+  "segmentStartIndices": [
+   0
+  ],
+  "processingParams": {
+   "distance": {
+    "method": "geodesic",
+    "ellipsoid": "WGS84"
+   },
+   "resampling": {
+    "method": "linear_interpolation",
+    "spacingM": 25.0,
+    "includeSegmentEnd": true
+   },
+   "smoothing": {
+    "method": "centered_moving_average",
+    "windowSamples": 7,
+    "edges": "shrink_window"
+   },
+   "ascent": {
+    "method": "sum_of_positive_differences",
+    "thresholdM": 0.0,
+    "acrossSegmentBreaks": false
+   }
+  }
+ }
+}

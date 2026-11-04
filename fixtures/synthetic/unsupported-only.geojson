@@ -1,0 +1,35 @@
+{
+ "type": "FeatureCollection",
+ "name": "SYNTHETIC RouteEditor fixture (CC0-1.0). Not a real trail.",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Area only"
+   },
+   "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+     [
+      [
+       6.84,
+       45.79
+      ],
+      [
+       6.86,
+       45.79
+      ],
+      [
+       6.86,
+       45.81
+      ],
+      [
+       6.84,
+       45.79
+      ]
+     ]
+    ]
+   }
+  }
+ ]
+}

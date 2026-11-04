@@ -1,0 +1,112 @@
+{
+ "fixture": "fixtures/synthetic/swapped-axes.geojson",
+ "outcome": "FAILED",
+ "normalized": null,
+ "report": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "FAILED",
+  "source": {
+   "format": "GEOJSON",
+   "crs": {
+    "declared": null,
+    "source": "OGC:CRS84",
+    "target": "OGC:CRS84",
+    "reprojected": false
+   },
+   "metadata": {
+    "name": "SYNTHETIC RouteEditor fixture (CC0-1.0). Not a real trail."
+   }
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {
+   "pointsRead": 0
+  },
+  "lines": [],
+  "issues": [
+   {
+    "code": "INVALID_COORDINATE",
+    "severity": "error",
+    "message": "Coordinate (30.2, 120.5) is outside the valid longitude/latitude range. The values would be valid as [latitude, longitude]. GeoJSON requires [longitude, latitude]; the file was not changed.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 0,
+     "featureIndex": 0
+    },
+    "details": {
+     "lon": 30.2,
+     "lat": 120.5,
+     "hint": "AXIS_ORDER"
+    }
+   },
+   {
+    "code": "INVALID_COORDINATE",
+    "severity": "error",
+    "message": "Coordinate (30.200225518, 120.5) is outside the valid longitude/latitude range. The values would be valid as [latitude, longitude]. GeoJSON requires [longitude, latitude]; the file was not changed.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 1,
+     "featureIndex": 0
+    },
+    "details": {
+     "lon": 30.200225518,
+     "lat": 120.5,
+     "hint": "AXIS_ORDER"
+    }
+   },
+   {
+    "code": "INVALID_COORDINATE",
+    "severity": "error",
+    "message": "Coordinate (30.200451036, 120.5) is outside the valid longitude/latitude range. The values would be valid as [latitude, longitude]. GeoJSON requires [longitude, latitude]; the file was not changed.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 2,
+     "featureIndex": 0
+    },
+    "details": {
+     "lon": 30.200451036,
+     "lat": 120.5,
+     "hint": "AXIS_ORDER"
+    }
+   },
+   {
+    "code": "INVALID_COORDINATE",
+    "severity": "error",
+    "message": "Coordinate (30.200676554, 120.5) is outside the valid longitude/latitude range. The values would be valid as [latitude, longitude]. GeoJSON requires [longitude, latitude]; the file was not changed.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 3,
+     "featureIndex": 0
+    },
+    "details": {
+     "lon": 30.200676554,
+     "lat": 120.5,
+     "hint": "AXIS_ORDER"
+    }
+   },
+   {
+    "code": "INVALID_COORDINATE",
+    "severity": "error",
+    "message": "Coordinate (30.200902073, 120.5) is outside the valid longitude/latitude range. The values would be valid as [latitude, longitude]. GeoJSON requires [longitude, latitude]; the file was not changed.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 4,
+     "featureIndex": 0
+    },
+    "details": {
+     "lon": 30.200902073,
+     "lat": 120.5,
+     "hint": "AXIS_ORDER"
+    }
+   }
+  ]
+ }
+}

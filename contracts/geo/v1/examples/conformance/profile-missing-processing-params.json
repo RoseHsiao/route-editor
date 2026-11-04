@@ -1,0 +1,29 @@
+{
+ "definition": "profile",
+ "expect": "invalid",
+ "reason": "processingParams is required",
+ "document": {
+  "schemaVersion": 1,
+  "sampleSpacingM": 25.0,
+  "distancesKm": [
+   0.0,
+   0.025,
+   0.05,
+   0.05,
+   0.075
+  ],
+  "elevationsM": [
+   1000.0,
+   1001.0,
+   1002.0,
+   1010.0,
+   1011.0
+  ],
+  "elevationSource": "SOURCE_FILE",
+  "elevationComplete": true,
+  "segmentStartIndices": [
+   0,
+   3
+  ]
+ }
+}

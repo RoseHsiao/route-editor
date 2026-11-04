@@ -1,8 +1,15 @@
+import { createHash } from "node:crypto";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { assertValidStorageKey } from "./keys";
-import { InvalidStorageKeyError, type PresignedUpload, type StorageAdapter, type StoredObject } from "./types";
+import {
+  InvalidStorageKeyError,
+  type ObjectHead,
+  type PresignedUpload,
+  type StorageAdapter,
+  type StoredObject,
+} from "./types";
 
 const META_SUFFIX = ".meta.json";
 
@@ -54,6 +61,17 @@ export class LocalStorageAdapter implements StorageAdapter {
       return (await stat(this.resolve(key))).isFile();
     } catch (error) {
       if (isNotFound(error)) return false;
+      throw error;
+    }
+  }
+
+  async head(key: string): Promise<ObjectHead | null> {
+    const target = this.resolve(key);
+    try {
+      const body = await readFile(target);
+      return { sizeBytes: body.length, sha256: createHash("sha256").update(body).digest("hex") };
+    } catch (error) {
+      if (isNotFound(error)) return null;
       throw error;
     }
   }

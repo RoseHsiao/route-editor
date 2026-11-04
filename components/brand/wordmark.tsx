@@ -16,7 +16,8 @@ export function Wordmark({ className }: { className?: string }) {
         <circle cx="10" cy="12" r="1.6" className="fill-primary" />
         <circle cx="20" cy="11" r="1.6" className="fill-primary" />
       </svg>
-      <span className="font-heading text-lg font-semibold tracking-tight">TrailPlanner</span>
+      {/* Visually hidden on very narrow screens so the main navigation fits; still read out. */}
+      <span className="font-heading text-lg font-semibold tracking-tight max-[379px]:sr-only">RouteEditor</span>
     </span>
   );
 }

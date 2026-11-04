@@ -1,0 +1,24 @@
+{
+ "definition": "segment",
+ "expect": "invalid",
+ "reason": "hasElevation requires 3D coordinates",
+ "document": {
+  "sourcePartIndex": 0,
+  "pointCount": 2,
+  "elevationPointCount": 2,
+  "hasElevation": true,
+  "distanceKm": 0.025,
+  "ascentM": 1.0,
+  "descentM": 0.0,
+  "coordinates": [
+   [
+    6.85,
+    45.8
+   ],
+   [
+    6.85,
+    45.800225
+   ]
+  ]
+ }
+}

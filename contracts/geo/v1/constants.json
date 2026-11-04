@@ -1,0 +1,18 @@
+{
+  "contractVersion": 1,
+  "profileSchemaVersion": 1,
+  "maxFileBytes": 26214400,
+  "maxPoints": 1000000,
+  "maxIssuesPerCode": 20,
+  "maxMetadataBytes": 16384,
+  "defaultGapWarnM": 100,
+  "defaultGapFailM": 1000,
+  "routeLongLegM": 1000,
+  "spikeMinLegM": 50,
+  "spikeDetourRatio": 4,
+  "spikeMaxSpeedMps": 60,
+  "elevationMinM": -500,
+  "elevationMaxM": 9000,
+  "profileSampleSpacingM": 25,
+  "profileSmoothingWindow": 7
+}

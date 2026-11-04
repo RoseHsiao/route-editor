@@ -1,0 +1,12 @@
+{
+ "definition": "jobErrors",
+ "expect": "invalid",
+ "reason": "retryable is required",
+ "document": [
+  {
+   "code": "MALFORMED_XML",
+   "message": "Broken.",
+   "details": {}
+  }
+ ]
+}

@@ -87,6 +87,7 @@ def test_unimplemented_kinds_fail_with_a_structured_error(conn: psycopg.Connecti
             "code": "PROCESSOR_NOT_IMPLEMENTED",
             "message": "Imports of kind POI are not supported yet.",
             "details": {"kind": "POI"},
+            "retryable": False,
         }
     ]
     assert run_once(conn, config) is False

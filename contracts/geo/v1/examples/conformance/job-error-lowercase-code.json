@@ -1,0 +1,13 @@
+{
+ "definition": "jobErrors",
+ "expect": "invalid",
+ "reason": "codes are UPPER_SNAKE_CASE",
+ "document": [
+  {
+   "code": "malformed",
+   "message": "Broken.",
+   "details": {},
+   "retryable": false
+  }
+ ]
+}

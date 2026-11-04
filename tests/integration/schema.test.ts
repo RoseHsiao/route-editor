@@ -12,7 +12,7 @@ async function createTrailWithDataset(overrides: { visibility?: "PUBLIC" | "PRIV
     data: {
       trailId: trail.id,
       sourceCategory: "SYNTHETIC",
-      sourceName: "TrailPlanner test fixture",
+      sourceName: "RouteEditor test fixture",
       fileType: "GEOJSON",
       license: "CC0-1.0",
       version: 1,
@@ -25,7 +25,9 @@ async function createTrailWithDataset(overrides: { visibility?: "PUBLIC" | "PRIV
 
 async function createTrek() {
   const { trail, dataset } = await createTrailWithDataset();
-  const variant = await db.trailVariant.create({ data: { datasetId: dataset.id, name: "Main", isMain: true } });
+  const variant = await db.trailVariant.create({
+    data: { datasetId: dataset.id, name: "Main", isMain: true, sourceKind: "LINE", sourceIndex: 0 },
+  });
   const user = await db.user.create({ data: { email: `${crypto.randomUUID()}@example.test` } });
   const trek = await db.trek.create({
     data: {
@@ -105,8 +107,9 @@ describe("trail segments", () => {
     const { dataset } = await createTrailWithDataset();
     await expect(
       db.$executeRaw`
-        INSERT INTO trail_segments (id, dataset_id, sequence, geometry, has_elevation, distance_km, ascent_m)
-        VALUES ('s1', ${dataset.id}, 0, ST_GeomFromText('LINESTRING(6.8 45.9, 6.81 45.91)', 4326), false, 1, 50)`,
+        INSERT INTO trail_segments (id, dataset_id, sequence, source_part_index, point_count, elevation_point_count,
+                                    geometry, has_elevation, distance_km, ascent_m)
+        VALUES ('s1', ${dataset.id}, 0, 0, 2, 0, ST_GeomFromText('LINESTRING(6.8 45.9, 6.81 45.91)', 4326), false, 1, 50)`,
     ).rejects.toThrow(/trail_segments_elevation_metrics_need_elevation/);
   });
 
@@ -114,9 +117,76 @@ describe("trail segments", () => {
     const { dataset } = await createTrailWithDataset();
     await expect(
       db.$executeRaw`
-        INSERT INTO trail_segments (id, dataset_id, sequence, geometry, has_elevation, distance_km)
-        VALUES ('s1', ${dataset.id}, 0, ST_GeomFromText('LINESTRING(6.8 45.9, 6.81 45.91)', 4326), true, 1)`,
+        INSERT INTO trail_segments (id, dataset_id, sequence, source_part_index, point_count, elevation_point_count,
+                                    geometry, has_elevation, distance_km)
+        VALUES ('s1', ${dataset.id}, 0, 0, 2, 2, ST_GeomFromText('LINESTRING(6.8 45.9, 6.81 45.91)', 4326), true, 1)`,
     ).rejects.toThrow(/trail_segments_elevation_dims/);
+  });
+
+  it("rejects a point count that does not match the geometry (CHECK)", async () => {
+    const { dataset } = await createTrailWithDataset();
+    await expect(
+      db.$executeRaw`
+        INSERT INTO trail_segments (id, dataset_id, sequence, source_part_index, point_count, elevation_point_count,
+                                    geometry, has_elevation, distance_km)
+        VALUES ('s1', ${dataset.id}, 0, 0, 3, 0, ST_GeomFromText('LINESTRING(6.8 45.9, 6.81 45.91)', 4326), false, 1)`,
+    ).rejects.toThrow(/trail_segments_point_count_matches_geometry/);
+  });
+
+  it("rejects partial elevation presented as complete (CHECK)", async () => {
+    const { dataset } = await createTrailWithDataset();
+    await expect(
+      db.$executeRaw`
+        INSERT INTO trail_segments (id, dataset_id, sequence, source_part_index, point_count, elevation_point_count,
+                                    geometry, has_elevation, distance_km)
+        VALUES ('s1', ${dataset.id}, 0, 0, 2, 1,
+                ST_GeomFromText('LINESTRING Z(6.8 45.9 1000, 6.81 45.91 1010)', 4326), true, 1)`,
+    ).rejects.toThrow(/trail_segments_elevation_complete_iff_all_points/);
+  });
+});
+
+describe("M2 import tables", () => {
+  it("keeps waypoint locations in sync and validates their coordinates", async () => {
+    const { dataset } = await createTrailWithDataset();
+    await db.datasetWaypoint.create({ data: { datasetId: dataset.id, sequence: 0, latitude: 45.9, longitude: 6.8 } });
+    const [row] = await db.$queryRaw<{ x: number; y: number }[]>`
+      SELECT ST_X(location) AS x, ST_Y(location) AS y FROM dataset_waypoints`;
+    expect(row).toEqual({ x: 6.8, y: 45.9 });
+    await expect(
+      db.datasetWaypoint.create({ data: { datasetId: dataset.id, sequence: 1, latitude: 95, longitude: 6.8 } }),
+    ).rejects.toThrow(/dataset_waypoints_latitude_range/);
+  });
+
+  it("requires profiles to list their segment starts from 0", async () => {
+    const { dataset } = await createTrailWithDataset();
+    const variant = await db.trailVariant.create({
+      data: { datasetId: dataset.id, name: "Main", isMain: true, sourceKind: "TRACK", sourceIndex: 0 },
+    });
+    await expect(
+      db.variantProfile.create({
+        data: {
+          variantId: variant.id,
+          schemaVersion: 1,
+          processorVersion: "test",
+          sampleSpacingM: 25,
+          distancesKm: [0, 0.025],
+          elevationsM: [],
+          elevationSource: "NONE",
+          elevationComplete: false,
+          segmentStartIndices: [1],
+          processingParams: {},
+        },
+      }),
+    ).rejects.toThrow(/variant_profiles_segment_starts/);
+  });
+
+  it("only lets a job be PROCESSING while a lease is held", async () => {
+    const file = await db.storedFile.create({
+      data: { storageKey: "uploads/t/f.gpx", mimeType: "application/gpx+xml", sizeBytes: 1, sha256: "0".repeat(64) },
+    });
+    await expect(
+      db.importJob.create({ data: { kind: "TRAIL_GEOMETRY", status: "PROCESSING", fileId: file.id, sourceInfo: {} } }),
+    ).rejects.toThrow(/import_jobs_lease_iff_processing/);
   });
 });
 

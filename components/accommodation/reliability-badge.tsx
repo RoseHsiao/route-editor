@@ -27,7 +27,7 @@ export function ReliabilityBadge({
   className,
 }: {
   reliability: AccommodationReliability;
-  /** Suggested by TrailPlanner rather than chosen by the user. */
+  /** Suggested by RouteEditor rather than chosen by the user. */
   recommended?: boolean;
   className?: string;
 }) {

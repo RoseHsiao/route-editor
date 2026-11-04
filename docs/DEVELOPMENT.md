@@ -26,6 +26,7 @@ cp .env.example .env
 pnpm db:up && pnpm db:deploy
 pnpm worker:sync
 pnpm dev
+pnpm worker:run          # in a second terminal: processes imports
 ```
 
 `GET /api/health` should return `{"status":"ok","database":"ok","postgis":"3.5.x"}`.
@@ -79,7 +80,13 @@ unless the database name contains `test`, it differs from `DATABASE_URL`, and it
 never drops data, and each test starts from truncated tables.
 
 **End-to-end tests** run against `next dev` until M4, because production builds (correctly)
-refuse the development user stub. They use the development database.
+refuse the development user stub. They use the development database and local storage; the
+upload test leaves a pending synthetic import there.
+
+**Turbopack dev cache.** With Next.js 16.4.4, restarting `next dev` on the cache left by a
+previous, killed dev server was observed to put the browser into an endless Fast Refresh
+reload loop. Playwright therefore starts its dev server with a fresh cache. If you see the
+loop with `pnpm dev`, stop it and delete `.next/dev/cache/turbopack` (it is only a speed-up).
 
 ## Authentication in development
 
@@ -101,7 +108,21 @@ Tokens live in `app/globals.css` and are shown at `/design-system`.
 
 ## Worker
 
-See [workers/geo-processing/README.md](../workers/geo-processing/README.md).
+See [workers/geo-processing/README.md](../workers/geo-processing/README.md) and
+[IMPORT_PIPELINE.md](IMPORT_PIPELINE.md).
+
+| Command | Purpose |
+|---|---|
+| `pnpm worker:run` | Poll `import_jobs` continuously, using the repository's `.env` |
+| `pnpm worker:once` | Process at most one job |
+| `pnpm worker:inspect <file>` | Parse and validate a local file without writing anything (safe for `fixtures/private/`) |
+
+A relative `STORAGE_LOCAL_DIR` is resolved from the repository root by both the web app and
+the worker, so they share `.data/storage/`.
+
+Synthetic fixtures and the contract examples are regenerated from `workers/geo-processing`
+with `uv run python scripts/generate_fixtures.py` and
+`uv run python scripts/generate_contract_examples.py`.
 `pnpm worker:lint` runs ruff (lint and format check) and `mypy --strict`.
 
 ## Next.js version notes

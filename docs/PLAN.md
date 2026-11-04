@@ -10,6 +10,7 @@ A milestone starts only after the previous one has been reviewed and approved.
 
 | Topic | Decision | Recorded in |
 |---|---|---|
+| Product name | **RouteEditor** (renamed from TrailPlanner on 2026-11-04). Identifier `routeeditor`. Local database names and the Compose project still use `trailplanner` until the maintainer approves recreating the local volume | this file |
 | Repository | Standalone repository at `~/route-editor`. No operations on the home-directory repository | [DEVELOPMENT.md](DEVELOPMENT.md) |
 | Local database | Docker Compose, PostgreSQL + PostGIS, reproducible for contributors. No production resources | [ADR 0002](adr/0002-postgis-with-prisma.md) |
 | Python tooling | uv with a project-local virtualenv. No global installs | [workers/geo-processing/README.md](../workers/geo-processing/README.md) |
@@ -25,7 +26,7 @@ A milestone starts only after the previous one has been reviewed and approved.
 
 ## Milestones
 
-### M1: Foundations ✅ (awaiting review)
+### M1: Foundations ✅ (accepted 2026-11-04; approved commit `9298fab`)
 
 - Next.js App Router, strict TypeScript, Tailwind, shadcn/ui on Base UI, Lucide
 - Design system: tokens, typography, stage and POI palettes, reliability badges, `/design-system`
@@ -37,13 +38,33 @@ A milestone starts only after the previous one has been reviewed and approved.
 - Test infrastructure: Vitest (unit and integration), Playwright (desktop and mobile), pytest, ruff, mypy
 - Repository documents and ADRs
 
-### M2: Trail import and visualization
+### M2: Trail import and visualization ✅ (functionally accepted 2026-11-04; not yet committed)
+
+Decisions from the M2 review:
+
+- Spikes stay detect-and-report only; they are never removed silently.
+- **Before M5:** revisit the distinction between *source distance* (what is stored now: the
+  geodesic length of the source geometry, spikes included) and any *validated distance*. No
+  validated distance metric is introduced until then.
+- Elevation source and completeness stay visible wherever elevation is shown. Accuracy on
+  synthetic fixtures verifies the method only; it is not a guarantee of real-world accuracy.
+- Known limitations recorded for future work (none block M2): antimeridian rendering, geometry
+  simplification for large routes, source GPS spikes affecting distance, real S3 integration
+  testing. See [IMPORT_PIPELINE.md](IMPORT_PIPELINE.md#known-limitations).
+- The Turbopack dev filesystem cache stays enabled project-wide; only the Playwright dev server
+  starts from a clean cache.
+
+Scope as approved on 2026-11-04: in addition to the items below, the resampled and smoothed
+elevation profile and its chart were moved forward from M3. Implemented as described in
+[IMPORT_PIPELINE.md](IMPORT_PIPELINE.md). Inspecting the private TMBmap file is optional,
+manual and local-only (`pnpm worker:inspect`). It is not an M2 acceptance criterion and not
+part of the test suite.
 
 - Upload flow: presigned uploads (S3), development upload route (local), `StoredFile` + `ImportJob`
 - Worker: GPX (`trk`, `rte`, `wpt`) and GeoJSON parsing; coordinate validation; detection of duplicates, spikes and gaps; CRS normalization; geodesic distance; segments; variants; resampled profile; validation report
 - Synthetic fixtures (GPX, GeoJSON) and a fixture generator
 - Trail map (MapLibre) with variant geometry
-- Acceptance: synthetic fixtures and the private TMBmap file import correctly. Invalid or disconnected inputs fail with structured errors
+- Acceptance: the synthetic fixtures import with their documented results, and invalid or disconnected inputs fail with structured errors. The private TMBmap file is not an acceptance criterion; inspecting it is optional, manual and local-only, and it is never committed, seeded or redistributed
 
 ### M3: POIs, elevation profile, trail detail
 

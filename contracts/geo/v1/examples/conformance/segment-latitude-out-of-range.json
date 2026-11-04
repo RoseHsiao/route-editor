@@ -1,0 +1,26 @@
+{
+ "definition": "segment",
+ "expect": "invalid",
+ "reason": "positions are WGS 84 lon/lat",
+ "document": {
+  "sourcePartIndex": 0,
+  "pointCount": 2,
+  "elevationPointCount": 2,
+  "hasElevation": true,
+  "distanceKm": 0.025,
+  "ascentM": 1.0,
+  "descentM": 0.0,
+  "coordinates": [
+   [
+    6.85,
+    95.0,
+    1.0
+   ],
+   [
+    6.85,
+    45.8,
+    1.0
+   ]
+  ]
+ }
+}

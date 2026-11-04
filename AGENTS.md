@@ -8,7 +8,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 <!-- END:nextjs-agent-rules -->
 
-## TrailPlanner conventions
+## RouteEditor conventions
 
 - Read `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md` and the ADRs in `docs/adr/` before changing behaviour.
 - Pure modules (`lib/planning`, `lib/geo`, `lib/accommodation`) must not import framework, database or I/O code (ESLint enforces this).

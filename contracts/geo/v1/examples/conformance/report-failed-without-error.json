@@ -1,0 +1,32 @@
+{
+ "definition": "validationReport",
+ "expect": "invalid",
+ "reason": "FAILED needs an error issue",
+ "document": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "FAILED",
+  "source": {
+   "format": "GPX"
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {},
+  "lines": [],
+  "issues": [
+   {
+    "code": "LARGE_GAP",
+    "severity": "warning",
+    "message": "Gap.",
+    "location": {
+     "lineIndex": 0,
+     "lat": 45.8,
+     "lon": 6.85
+    },
+    "details": {}
+   }
+  ]
+ }
+}

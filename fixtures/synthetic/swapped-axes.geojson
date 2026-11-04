@@ -1,0 +1,37 @@
+{
+ "type": "FeatureCollection",
+ "name": "SYNTHETIC RouteEditor fixture (CC0-1.0). Not a real trail.",
+ "features": [
+  {
+   "type": "Feature",
+   "properties": {
+    "name": "Swapped"
+   },
+   "geometry": {
+    "type": "LineString",
+    "coordinates": [
+     [
+      30.2,
+      120.5
+     ],
+     [
+      30.200225518,
+      120.5
+     ],
+     [
+      30.200451036,
+      120.5
+     ],
+     [
+      30.200676554,
+      120.5
+     ],
+     [
+      30.200902073,
+      120.5
+     ]
+    ]
+   }
+  }
+ ]
+}

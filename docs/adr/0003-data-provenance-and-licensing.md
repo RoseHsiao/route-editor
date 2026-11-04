@@ -3,7 +3,7 @@
 **Status:** Accepted (2026-11-03)
 
 ## Context
-Trail data is often publicly accessible but not licensed for reuse. TrailPlanner is a public repository and may become a public service.
+Trail data is often publicly accessible but not licensed for reuse. RouteEditor is a public repository and may become a public service.
 
 ## Decision
 - Every dataset records its source category, URL, licence, attribution, commercial-use and redistribution permissions (tri-state: `NULL` = unknown = not allowed), verification date, version, and the raw file.

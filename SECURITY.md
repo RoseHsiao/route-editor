@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-TrailPlanner has not been released yet. Security fixes are applied to the `main` branch.
+RouteEditor has not been released yet. Security fixes are applied to the `main` branch.
 
 ## Reporting a vulnerability
 

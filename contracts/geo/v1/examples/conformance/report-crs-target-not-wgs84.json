@@ -1,0 +1,38 @@
+{
+ "definition": "validationReport",
+ "expect": "invalid",
+ "reason": "the target CRS is always CRS84",
+ "document": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "SUCCEEDED",
+  "source": {
+   "format": "GPX",
+   "crs": {
+    "declared": "EPSG:2056",
+    "source": "EPSG:2056",
+    "target": "EPSG:2056",
+    "reprojected": false
+   }
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {},
+  "lines": [],
+  "issues": [
+   {
+    "code": "LARGE_GAP",
+    "severity": "warning",
+    "message": "Gap.",
+    "location": {
+     "lineIndex": 0,
+     "lat": 45.8,
+     "lon": 6.85
+    },
+    "details": {}
+   }
+  ]
+ }
+}

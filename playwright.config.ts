@@ -20,7 +20,10 @@ export default defineConfig({
     { name: "mobile-chromium", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: `pnpm exec next dev --port ${PORT}`,
+    // Start from a fresh Turbopack dev cache. Restarting `next dev` (16.4.4) on a cache left
+    // by a previous, killed dev server was observed to put the client into an endless
+    // Fast Refresh reload loop. The cache is only a speed-up; see docs/DEVELOPMENT.md.
+    command: `node -e "require('fs').rmSync('.next/dev/cache/turbopack',{recursive:true,force:true})" && pnpm exec next dev --port ${PORT}`,
     url: `${baseURL}/api/health`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

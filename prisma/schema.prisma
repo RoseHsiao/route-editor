@@ -1,4 +1,4 @@
-// TrailPlanner database schema.
+// RouteEditor database schema.
 //
 // Conventions (see docs/DATA_MODEL.md):
 // - Tables and columns are snake_case in Postgres, camelCase in Prisma.
@@ -176,6 +176,18 @@ enum TrekStopSource {
   @@map("trek_stop_source")
 }
 
+/// What a line represents in its source. Tracks and routes are never interchangeable.
+enum RouteSourceKind {
+  /// GPX <trk>: a recorded GPS track.
+  TRACK
+  /// GPX <rte>: a planned route (a sequence of route points).
+  ROUTE
+  /// GeoJSON LineString/MultiLineString: the format does not say whether it is a track or a route.
+  LINE
+
+  @@map("route_source_kind")
+}
+
 enum ImportKind {
   TRAIL_GEOMETRY
   POI
@@ -253,23 +265,23 @@ model StoredFile {
 // ─── Trails ─────────────────────────────────────────────────────────────────
 
 model Trail {
-  id           String           @id @default(cuid())
-  name         String
-  slug         String           @unique
-  description  String?
-  region       String?
+  id              String           @id @default(cuid())
+  name            String
+  slug            String           @unique
+  description     String?
+  region          String?
   /// ISO 3166-1 alpha-2 codes.
-  countryCodes String[]         @map("country_codes")
+  countryCodes    String[]         @map("country_codes")
   /// Cached from the active dataset's main variant. Null until processed.
-  totalDistanceKm Float?        @map("total_distance_km")
-  totalAscentM    Float?        @map("total_ascent_m")
-  totalDescentM   Float?        @map("total_descent_m")
-  difficulty   TrailDifficulty?
-  isPublished  Boolean          @default(false) @map("is_published")
+  totalDistanceKm Float?           @map("total_distance_km")
+  totalAscentM    Float?           @map("total_ascent_m")
+  totalDescentM   Float?           @map("total_descent_m")
+  difficulty      TrailDifficulty?
+  isPublished     Boolean          @default(false) @map("is_published")
   /// Null for curated platform trails; set for trails created from a user upload.
-  ownerUserId  String?          @map("owner_user_id")
-  createdAt    DateTime         @default(now()) @map("created_at")
-  updatedAt    DateTime         @updatedAt @map("updated_at")
+  ownerUserId     String?          @map("owner_user_id")
+  createdAt       DateTime         @default(now()) @map("created_at")
+  updatedAt       DateTime         @updatedAt @map("updated_at")
 
   owner    User?          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   datasets TrailDataset[]
@@ -304,12 +316,13 @@ model TrailDataset {
   importedAt            DateTime          @default(now()) @map("imported_at")
   isActive              Boolean           @default(false) @map("is_active")
 
-  trail      Trail          @relation(fields: [trailId], references: [id], onDelete: Cascade)
-  owner      User?          @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-  rawFile    StoredFile?    @relation(fields: [rawFileId], references: [id], onDelete: SetNull)
+  trail      Trail             @relation(fields: [trailId], references: [id], onDelete: Cascade)
+  owner      User?             @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  rawFile    StoredFile?       @relation(fields: [rawFileId], references: [id], onDelete: SetNull)
   variants   TrailVariant[]
   segments   TrailSegment[]
   pois       TrailPoi[]
+  waypoints  DatasetWaypoint[]
   treks      Trek[]
   importJobs ImportJob[]
 
@@ -322,16 +335,22 @@ model TrailDataset {
 /// A named route through the trail, built from an ordered list of segments.
 /// Geometry is not stored here; it is assembled from segments. See ADR 0002.
 model TrailVariant {
-  id          String   @id @default(cuid())
-  datasetId   String   @map("dataset_id")
-  name        String
-  description String?
-  isMain      Boolean  @default(false) @map("is_main")
-  isActive    Boolean  @default(true) @map("is_active")
-  distanceKm  Float?   @map("distance_km")
-  ascentM     Float?   @map("ascent_m")
-  descentM    Float?   @map("descent_m")
-  createdAt   DateTime @default(now()) @map("created_at")
+  id             String          @id @default(cuid())
+  datasetId      String          @map("dataset_id")
+  name           String
+  description    String?
+  isMain         Boolean         @default(false) @map("is_main")
+  isActive       Boolean         @default(true) @map("is_active")
+  /// What the source says this line is (track, planned route, or unspecified line).
+  sourceKind     RouteSourceKind @map("source_kind")
+  /// Position of the <trk>/<rte>/feature in the source file, 0-based, for provenance.
+  sourceIndex    Int             @map("source_index")
+  /// Source metadata kept verbatim (GPX desc, cmt, src, type, number, links; GeoJSON properties).
+  sourceMetadata Json            @default("{}") @map("source_metadata")
+  distanceKm     Float?          @map("distance_km")
+  ascentM        Float?          @map("ascent_m")
+  descentM       Float?          @map("descent_m")
+  createdAt      DateTime        @default(now()) @map("created_at")
 
   dataset      TrailDataset     @relation(fields: [datasetId], references: [id], onDelete: Cascade)
   segments     VariantSegment[]
@@ -347,20 +366,27 @@ model TrailVariant {
 
 /// A continuous piece of normalized trail geometry. The only place route geometry is stored.
 model TrailSegment {
-  id         String @id @default(cuid())
-  datasetId  String @map("dataset_id")
+  id                  String                  @id @default(cuid())
+  datasetId           String                  @map("dataset_id")
   /// Order within the dataset as imported.
-  sequence   Int
+  sequence            Int
+  /// Index of the source part inside its line: the <trkseg> of a track, the part of a
+  /// MultiLineString, or 0. Source segment boundaries are preserved; parts are never joined.
+  sourcePartIndex     Int                     @map("source_part_index")
+  /// Vertices after removing consecutive duplicates, and how many of them carried a valid
+  /// source elevation. Elevation is complete only when the two are equal.
+  pointCount          Int                     @map("point_count")
+  elevationPointCount Int                     @map("elevation_point_count")
   /// LINESTRING (2D) or LINESTRING Z (with elevation), SRID 4326. Z is present only
   /// when every vertex has elevation; see has_elevation and docs/DATA_MODEL.md.
   /// Untyped column because a PostGIS typmod fixes the dimension; type, SRID and
   /// dimension are enforced by CHECK constraints instead.
-  geometry   Unsupported("geometry")
-  hasElevation Boolean @map("has_elevation")
-  distanceKm Float  @map("distance_km")
+  geometry            Unsupported("geometry")
+  hasElevation        Boolean                 @map("has_elevation")
+  distanceKm          Float                   @map("distance_km")
   /// Null when elevation is missing or incomplete. Never fabricated.
-  ascentM    Float? @map("ascent_m")
-  descentM   Float? @map("descent_m")
+  ascentM             Float?                  @map("ascent_m")
+  descentM            Float?                  @map("descent_m")
 
   dataset  TrailDataset     @relation(fields: [datasetId], references: [id], onDelete: Cascade)
   variants VariantSegment[]
@@ -391,53 +417,85 @@ model VariantSegment {
 /// Resampled distance/elevation profile of a variant: the planning engine's input.
 /// Derived data, rebuilt by the geo worker from segments; see docs/DATA_MODEL.md.
 model VariantProfile {
-  variantId        String          @id @map("variant_id")
-  schemaVersion    Int             @map("schema_version")
-  processorVersion String          @map("processor_version")
-  sampleSpacingM   Float           @map("sample_spacing_m")
+  variantId           String          @id @map("variant_id")
+  schemaVersion       Int             @map("schema_version")
+  processorVersion    String          @map("processor_version")
+  sampleSpacingM      Float           @map("sample_spacing_m")
   /// Cumulative forward distance of each sample, km. Starts at 0, strictly increasing.
-  distancesKm      Float[]         @map("distances_km")
+  distancesKm         Float[]         @map("distances_km")
   /// Smoothed elevation per sample, metres. Empty when elevationComplete is false.
-  elevationsM      Float[]         @map("elevations_m")
-  elevationSource  ElevationSource @map("elevation_source")
-  elevationComplete Boolean        @map("elevation_complete")
+  elevationsM         Float[]         @map("elevations_m")
+  elevationSource     ElevationSource @map("elevation_source")
+  elevationComplete   Boolean         @map("elevation_complete")
+  /// Index of the first sample of each source segment. Segments are not connected, so the
+  /// profile is discontinuous at these indices: the distance repeats and nothing is drawn or
+  /// summed across the break. Always starts with 0.
+  segmentStartIndices Int[]           @map("segment_start_indices")
   /// Smoothing and resampling parameters actually used, for reproducibility.
-  processingParams Json            @map("processing_params")
-  computedAt       DateTime        @default(now()) @map("computed_at")
+  processingParams    Json            @map("processing_params")
+  computedAt          DateTime        @default(now()) @map("computed_at")
 
   variant TrailVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@map("variant_profiles")
 }
 
+/// A standalone waypoint (GPX <wpt>, GeoJSON Point) exactly as the source describes it.
+/// Not a curated POI: it has no type, verification or reliability (see trail_pois, M3).
+model DatasetWaypoint {
+  id             String                                @id @default(cuid())
+  datasetId      String                                @map("dataset_id")
+  /// Order in the source file, 0-based.
+  sequence       Int
+  name           String?
+  description    String?
+  comment        String?
+  /// GPX <sym> and <type>, verbatim.
+  symbol         String?
+  sourceType     String?                               @map("source_type")
+  latitude       Float
+  longitude      Float
+  /// Source elevation, metres. Null when absent or invalid; never filled in.
+  elevationM     Float?                                @map("elevation_m")
+  /// Kept in sync with latitude/longitude by a trigger; see migration SQL.
+  location       Unsupported("geometry(Point, 4326)")?
+  sourceMetadata Json                                  @default("{}") @map("source_metadata")
+
+  dataset TrailDataset @relation(fields: [datasetId], references: [id], onDelete: Cascade)
+
+  @@unique([datasetId, sequence])
+  @@index([location], type: Gist)
+  @@map("dataset_waypoints")
+}
+
 // ─── Points of interest ─────────────────────────────────────────────────────
 
 model TrailPoi {
-  id                 String             @id @default(cuid())
-  trailId            String             @map("trail_id")
-  datasetId          String?            @map("dataset_id")
+  id                       String                                @id @default(cuid())
+  trailId                  String                                @map("trail_id")
+  datasetId                String?                               @map("dataset_id")
   /// Identifier in the source (e.g. "osm:node/123"), used for provenance and de-duplication.
-  sourceRef          String?            @map("source_ref")
-  name               String
-  type               PoiType
-  latitude           Float
-  longitude          Float
+  sourceRef                String?                               @map("source_ref")
+  name                     String
+  type                     PoiType
+  latitude                 Float
+  longitude                Float
   /// Kept in sync with latitude/longitude by a trigger; see migration SQL.
-  location           Unsupported("geometry(Point, 4326)")?
-  elevationM         Float?             @map("elevation_m")
-  sourceCategory     SourceCategory     @map("source_category")
-  verificationStatus VerificationStatus @default(UNVERIFIED) @map("verification_status")
-  lastVerifiedAt     DateTime?          @map("last_verified_at")
+  location                 Unsupported("geometry(Point, 4326)")?
+  elevationM               Float?                                @map("elevation_m")
+  sourceCategory           SourceCategory                        @map("source_category")
+  verificationStatus       VerificationStatus                    @default(UNVERIFIED) @map("verification_status")
+  lastVerifiedAt           DateTime?                             @map("last_verified_at")
   /// Accommodation only. Never USER_BOOKED (enforced by CHECK). See ADR 0006.
-  accommodationReliability AccommodationReliability? @map("accommodation_reliability")
+  accommodationReliability AccommodationReliability?             @map("accommodation_reliability")
   /// Inclusive season window as "MM-DD". Both null means unknown, not year-round.
-  seasonStart        String?            @map("season_start")
-  seasonEnd          String?            @map("season_end")
+  seasonStart              String?                               @map("season_start")
+  seasonEnd                String?                               @map("season_end")
   /// Type-specific details (capacity, contact, opening notes). Validated in the service layer.
-  attributes         Json               @default("{}")
-  isActive           Boolean            @default(true) @map("is_active")
-  createdAt          DateTime           @default(now()) @map("created_at")
-  updatedAt          DateTime           @updatedAt @map("updated_at")
+  attributes               Json                                  @default("{}")
+  isActive                 Boolean                               @default(true) @map("is_active")
+  createdAt                DateTime                              @default(now()) @map("created_at")
+  updatedAt                DateTime                              @updatedAt @map("updated_at")
 
   trail     Trail         @relation(fields: [trailId], references: [id], onDelete: Cascade)
   dataset   TrailDataset? @relation(fields: [datasetId], references: [id], onDelete: Cascade)
@@ -469,34 +527,34 @@ model PoiPosition {
 // ─── Treks ──────────────────────────────────────────────────────────────────
 
 model Trek {
-  id           String        @id @default(cuid())
-  userId       String        @map("user_id")
-  trailId      String        @map("trail_id")
-  datasetId    String        @map("dataset_id")
-  variantId    String        @map("variant_id")
-  name         String
-  startDate    DateTime      @map("start_date") @db.Date
-  direction    TrekDirection @default(FORWARD)
-  planningMode PlanningMode  @default(AUTO) @map("planning_mode")
-  status       TrekStatus    @default(DRAFT)
-  fitnessLevel FitnessLevel  @default(INTERMEDIATE) @map("fitness_level")
-  targetDays        Int?     @map("target_days")
-  targetDistanceKm  Float?   @map("target_distance_km")
-  maxDistanceKm     Float?   @map("max_distance_km")
-  maxAscentM        Float?   @map("max_ascent_m")
-  maxDescentM       Float?   @map("max_descent_m")
-  targetMovingHours Float?   @map("target_moving_hours")
-  maxMovingHours    Float?   @map("max_moving_hours")
-  recommendationsEnabled Boolean @default(true) @map("recommendations_enabled")
+  id                     String        @id @default(cuid())
+  userId                 String        @map("user_id")
+  trailId                String        @map("trail_id")
+  datasetId              String        @map("dataset_id")
+  variantId              String        @map("variant_id")
+  name                   String
+  startDate              DateTime      @map("start_date") @db.Date
+  direction              TrekDirection @default(FORWARD)
+  planningMode           PlanningMode  @default(AUTO) @map("planning_mode")
+  status                 TrekStatus    @default(DRAFT)
+  fitnessLevel           FitnessLevel  @default(INTERMEDIATE) @map("fitness_level")
+  targetDays             Int?          @map("target_days")
+  targetDistanceKm       Float?        @map("target_distance_km")
+  maxDistanceKm          Float?        @map("max_distance_km")
+  maxAscentM             Float?        @map("max_ascent_m")
+  maxDescentM            Float?        @map("max_descent_m")
+  targetMovingHours      Float?        @map("target_moving_hours")
+  maxMovingHours         Float?        @map("max_moving_hours")
+  recommendationsEnabled Boolean       @default(true) @map("recommendations_enabled")
   /// Incremented on every itinerary change. Exports record the version they were built from.
-  itineraryVersion Int       @default(1) @map("itinerary_version")
-  createdAt    DateTime      @default(now()) @map("created_at")
-  updatedAt    DateTime      @updatedAt @map("updated_at")
+  itineraryVersion       Int           @default(1) @map("itinerary_version")
+  createdAt              DateTime      @default(now()) @map("created_at")
+  updatedAt              DateTime      @updatedAt @map("updated_at")
 
-  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trail   Trail         @relation(fields: [trailId], references: [id], onDelete: Restrict)
-  dataset TrailDataset  @relation(fields: [datasetId], references: [id], onDelete: Restrict)
-  variant TrailVariant  @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trail   Trail          @relation(fields: [trailId], references: [id], onDelete: Restrict)
+  dataset TrailDataset   @relation(fields: [datasetId], references: [id], onDelete: Restrict)
+  variant TrailVariant   @relation(fields: [variantId], references: [id], onDelete: Restrict)
   days    TrekDay[]
   stops   TrekStop[]
   exports ExportRecord[]
@@ -508,28 +566,28 @@ model Trek {
 /// One calendar day of a trek. Metrics are always computed by the server from
 /// the route profile; they are never accepted from clients.
 model TrekDay {
-  id        String      @id @default(cuid())
-  trekId    String      @map("trek_id")
+  id                     String            @id @default(cuid())
+  trekId                 String            @map("trek_id")
   /// 1-based. The date is startDate + (dayNumber - 1).
-  dayNumber Int         @map("day_number")
-  dayType   TrekDayType @default(HIKING) @map("day_type")
+  dayNumber              Int               @map("day_number")
+  dayType                TrekDayType       @default(HIKING) @map("day_type")
   /// Trek km (from the trek's start, in its direction). Equal for rest days.
-  startDistanceKm Float @map("start_distance_km")
-  endDistanceKm   Float @map("end_distance_km")
-  plannedDistanceKm      Float  @map("planned_distance_km")
+  startDistanceKm        Float             @map("start_distance_km")
+  endDistanceKm          Float             @map("end_distance_km")
+  plannedDistanceKm      Float             @map("planned_distance_km")
   /// Null when the route's elevation is incomplete.
-  plannedAscentM         Float? @map("planned_ascent_m")
-  plannedDescentM        Float? @map("planned_descent_m")
-  maxElevationM          Float? @map("max_elevation_m")
-  estimatedMovingMinutes Int?   @map("estimated_moving_minutes")
-  plannedRestMinutes     Int    @default(0) @map("planned_rest_minutes")
-  overnightStopId String?           @unique @map("overnight_stop_id")
-  planningStatus  DayPlanningStatus @default(AUTO_PLANNED) @map("planning_status")
+  plannedAscentM         Float?            @map("planned_ascent_m")
+  plannedDescentM        Float?            @map("planned_descent_m")
+  maxElevationM          Float?            @map("max_elevation_m")
+  estimatedMovingMinutes Int?              @map("estimated_moving_minutes")
+  plannedRestMinutes     Int               @default(0) @map("planned_rest_minutes")
+  overnightStopId        String?           @unique @map("overnight_stop_id")
+  planningStatus         DayPlanningStatus @default(AUTO_PLANNED) @map("planning_status")
   /// Locked days are never changed by recalculation. Manual edits lock automatically (ADR 0007).
-  isLocked        Boolean           @default(false) @map("is_locked")
-  notes           String?
-  createdAt       DateTime          @default(now()) @map("created_at")
-  updatedAt       DateTime          @updatedAt @map("updated_at")
+  isLocked               Boolean           @default(false) @map("is_locked")
+  notes                  String?
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
 
   trek          Trek      @relation(fields: [trekId], references: [id], onDelete: Cascade)
   overnightStop TrekStop? @relation("DayOvernightStop", fields: [overnightStopId], references: [id], onDelete: SetNull)
@@ -540,24 +598,24 @@ model TrekDay {
 
 /// A place on a trek: booked or recommended accommodation, personal POIs, notes.
 model TrekStop {
-  id       String         @id @default(cuid())
-  trekId   String         @map("trek_id")
+  id              String                    @id @default(cuid())
+  trekId          String                    @map("trek_id")
   /// Optional: user bookings may be at places that are not in our POI data.
-  poiId    String?        @map("poi_id")
-  name     String
-  stopType TrekStopType   @map("stop_type")
-  source   TrekStopSource
+  poiId           String?                   @map("poi_id")
+  name            String
+  stopType        TrekStopType              @map("stop_type")
+  source          TrekStopSource
   /// Required for overnight stops. System recommendations can never be USER_BOOKED (CHECK).
-  reliability AccommodationReliability?
+  reliability     AccommodationReliability?
   /// For fixed accommodation: the night the user arrives.
-  arrivalDate     DateTime? @map("arrival_date") @db.Date
+  arrivalDate     DateTime?                 @map("arrival_date") @db.Date
   /// Trek km of the point where the stop is reached from the trail.
-  routeDistanceKm Float     @map("route_distance_km")
+  routeDistanceKm Float                     @map("route_distance_km")
   latitude        Float
   longitude       Float
   notes           String?
-  createdAt       DateTime  @default(now()) @map("created_at")
-  updatedAt       DateTime  @updatedAt @map("updated_at")
+  createdAt       DateTime                  @default(now()) @map("created_at")
+  updatedAt       DateTime                  @updatedAt @map("updated_at")
 
   trek         Trek      @relation(fields: [trekId], references: [id], onDelete: Cascade)
   poi          TrailPoi? @relation(fields: [poiId], references: [id], onDelete: SetNull)
@@ -571,30 +629,36 @@ model TrekStop {
 
 /// Work queue for the geo worker. Claimed with SELECT ... FOR UPDATE SKIP LOCKED.
 model ImportJob {
-  id          String       @id @default(cuid())
-  kind        ImportKind
-  status      ImportStatus @default(PENDING)
-  ownerUserId String?      @map("owner_user_id")
+  id              String       @id @default(cuid())
+  kind            ImportKind
+  status          ImportStatus @default(PENDING)
+  ownerUserId     String?      @map("owner_user_id")
   /// Target trail for the import (existing trail, or the one created for it).
-  trailId     String?      @map("trail_id")
-  fileId      String       @map("file_id")
-  /// The dataset produced by a successful import.
-  datasetId   String?      @map("dataset_id")
+  trailId         String?      @map("trail_id")
+  fileId          String       @map("file_id")
+  /// The dataset produced by a successful import. Unique: one job publishes at most one dataset.
+  datasetId       String?      @unique @map("dataset_id")
   /// Provenance the user declared at upload: source name, URL, licence.
-  sourceInfo  Json         @map("source_info")
+  sourceInfo      Json         @map("source_info")
   /// Import options (e.g. variant names, gap tolerance).
-  options     Json         @default("{}")
+  options         Json         @default("{}")
   /// Structured validation report written by the worker.
-  validation  Json?
+  validation      Json?
   /// Structured errors (code, message, location). Empty on success.
-  errors      Json         @default("[]")
-  attempts    Int          @default(0)
-  lockedBy    String?      @map("locked_by")
-  lockedAt    DateTime?    @map("locked_at")
-  startedAt   DateTime?    @map("started_at")
-  finishedAt  DateTime?    @map("finished_at")
-  createdAt   DateTime     @default(now()) @map("created_at")
-  updatedAt   DateTime     @updatedAt @map("updated_at")
+  errors          Json         @default("[]")
+  attempts        Int          @default(0)
+  lockedBy        String?      @map("locked_by")
+  lockedAt        DateTime?    @map("locked_at")
+  /// Random token issued with each claim. Every write by the worker must present it, so a
+  /// worker whose lease expired and was reclaimed can no longer publish or fail the job.
+  leaseToken      String?      @map("lease_token")
+  leaseExpiresAt  DateTime?    @map("lease_expires_at")
+  /// Version of the geo processing contract (contracts/geo) the result was written with.
+  contractVersion Int?         @map("contract_version")
+  startedAt       DateTime?    @map("started_at")
+  finishedAt      DateTime?    @map("finished_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
 
   owner   User?         @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
   file    StoredFile    @relation(fields: [fileId], references: [id], onDelete: Cascade)

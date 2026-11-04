@@ -34,7 +34,7 @@ export default function HomePage() {
               Plan long trails one stage at a time.
             </h1>
             <p className="max-w-xl text-lg text-muted-foreground">
-              TrailPlanner splits an existing long-distance trail into daily stages that respect your pace, your limits
+              RouteEditor splits an existing long-distance trail into daily stages that respect your pace, your limits
               and your bookings. Then it lets you shape every day yourself.
             </p>
             <div className="flex flex-wrap items-center gap-3">

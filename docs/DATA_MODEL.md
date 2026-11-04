@@ -12,6 +12,7 @@ users ─┬─< stored_files ─< import_jobs >─ trail_datasets
        │                             ├─< trail_variants ─────────────────────┘
        │                             │        ├── variant_profiles (1:1)
        │                             │        └─< poi_positions >─ trail_pois
+       │                             ├─< dataset_waypoints
        │                             └─< trail_pois
        └─< treks ─┬─< trek_days ── overnight_stop ──> trek_stops
                   ├─< trek_stops ──> trail_pois (optional)
@@ -24,8 +25,9 @@ users ─┬─< stored_files ─< import_jobs >─ trail_datasets
 | `stored_files` | Index of objects in storage: raw uploads and generated exports, with SHA-256 |
 | `trails` | A long-distance trail. Totals are a cache of the active dataset's main variant |
 | `trail_datasets` | One imported version of a trail's data, with **provenance and licence** |
-| `trail_segments` | **The only place route geometry is stored** (PostGIS LineString, optional Z) |
-| `trail_variants` | A named route through the dataset (main route, alternatives) |
+| `trail_segments` | **The only place route geometry is stored** (PostGIS LineString, optional Z). One per source part (GPX `<trkseg>`, MultiLineString part); `source_part_index`, `point_count`, `elevation_point_count` |
+| `trail_variants` | A named route through the dataset (main route, alternatives). `source_kind` is `TRACK`, `ROUTE` or `LINE`; `source_index` and `source_metadata` keep the source's identity |
+| `dataset_waypoints` | Standalone waypoints (GPX `<wpt>`, GeoJSON Point) exactly as the source describes them. Not curated POIs |
 | `variant_segments` | Ordered segments of a variant, with direction and km range |
 | `variant_profiles` | Resampled km and elevation arrays: the planning engine's input (derived data) |
 | `trail_pois` | Points of interest, with verification status and accommodation reliability |
@@ -33,7 +35,7 @@ users ─┬─< stored_files ─< import_jobs >─ trail_datasets
 | `treks` | A user's plan: trail, dataset, variant, direction, dates, limits, itinerary version |
 | `trek_days` | One day: km range in trek km, derived metrics, lock state, overnight stop |
 | `trek_stops` | Bookings, recommendations, personal POIs, notes |
-| `import_jobs` | Work queue for the geo worker, with validation report and structured errors |
+| `import_jobs` | Work queue for the geo worker, with lease token, validation report, structured errors and contract version |
 | `export_records` | Generated GPX and PDF files, tied to an itinerary version and an input hash |
 
 ### Differences from the original specification
@@ -73,6 +75,10 @@ users ─┬─< stored_files ─< import_jobs >─ trail_datasets
   `ascent_m`/`descent_m` are `NULL`. Partial elevation is never stored as if it were complete.
 - `variant_profiles.elevations_m` is either empty (`elevation_complete = false`) or parallel to
   `distances_km`. `elevation_source` records where values came from (ADR 0009).
+- Raw source elevation is the Z value of `trail_segments.geometry` and is never smoothed;
+  profiles hold derived values only. `segment_start_indices` marks where each source segment
+  starts in the profile; distances repeat there and nothing is computed across the break.
+  See [IMPORT_PIPELINE.md](IMPORT_PIPELINE.md#distance-and-elevation).
 - Day metrics that need elevation (ascent, descent, maximum elevation, time) are `NULL` when the
   route's elevation is incomplete. The UI shows them as unavailable, never as zero.
 
@@ -96,6 +102,13 @@ migration SQL. Prisma ignores both when it diffs, so later migrations do not rem
 | `trek_days_*` | Ordered km range; non-negative metrics; rest days cover no distance |
 | `trek_stops_*` | Coordinate ranges; recommendations are never booked; reliability only on overnight stops |
 | `export_records_day_number_for_day_exports` | `day_number` set exactly for per-day GPX |
+| `trail_segments_point_count_matches_geometry`, `…_elevation_point_count_range`, `…_elevation_complete_iff_all_points` | Point counts match the geometry; `has_elevation` ⇔ every point has elevation (M2) |
+| `trail_variants_source_index_non_negative` | Source index is 0-based (M2) |
+| `variant_profiles_segment_starts` | `segment_start_indices` is non-empty and starts at 0 (M2) |
+| `dataset_waypoints_*` (+ trigger `dataset_waypoints_sync_location`) | Coordinate ranges; `location` kept in sync (M2) |
+| `import_jobs_lease_iff_processing` | A job is `PROCESSING` exactly when a lease is held (M2, ADR 0011) |
+| `import_jobs_succeeded_has_contract_version` | A succeeded job records its contract version (M2) |
+| `import_jobs_dataset_id_key` (unique) | One job publishes at most one dataset (M2) |
 
 Some rules span several rows (for example, a trek's variant must belong to its dataset, and
 its dataset to its trail). These are validated in the service layer from M4 onwards.

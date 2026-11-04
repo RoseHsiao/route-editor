@@ -1,0 +1,44 @@
+{
+ "definition": "profile",
+ "expect": "invalid",
+ "reason": "elevationComplete true with no elevations",
+ "document": {
+  "schemaVersion": 1,
+  "sampleSpacingM": 25.0,
+  "distancesKm": [
+   0.0,
+   0.025,
+   0.05,
+   0.05,
+   0.075
+  ],
+  "elevationsM": [],
+  "elevationSource": "SOURCE_FILE",
+  "elevationComplete": true,
+  "segmentStartIndices": [
+   0,
+   3
+  ],
+  "processingParams": {
+   "distance": {
+    "method": "geodesic",
+    "ellipsoid": "WGS84"
+   },
+   "resampling": {
+    "method": "linear_interpolation",
+    "spacingM": 25.0,
+    "includeSegmentEnd": true
+   },
+   "smoothing": {
+    "method": "centered_moving_average",
+    "windowSamples": 7,
+    "edges": "shrink_window"
+   },
+   "ascent": {
+    "method": "sum_of_positive_differences",
+    "thresholdM": 0.0,
+    "acrossSegmentBreaks": false
+   }
+  }
+ }
+}

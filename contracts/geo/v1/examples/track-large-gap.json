@@ -1,0 +1,80 @@
+{
+ "fixture": "fixtures/synthetic/track-large-gap.gpx",
+ "outcome": "FAILED",
+ "normalized": null,
+ "report": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "FAILED",
+  "source": {
+   "format": "GPX",
+   "crs": {
+    "declared": null,
+    "source": "OGC:CRS84",
+    "target": "OGC:CRS84",
+    "reprojected": false
+   },
+   "metadata": {
+    "gpxVersion": "1.1",
+    "creator": "RouteEditor fixture generator",
+    "name": "SYNTHETIC Track with a 2 km gap",
+    "desc": "SYNTHETIC RouteEditor fixture (CC0-1.0). Not a real trail."
+   }
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {
+   "lines": {
+    "TRACK": 1,
+    "ROUTE": 0,
+    "LINE": 0
+   },
+   "segments": 1,
+   "waypoints": 0,
+   "pointsRead": 82,
+   "pointsKept": 82,
+   "duplicatesRemoved": 0
+  },
+  "lines": [],
+  "issues": [
+   {
+    "code": "IMPLAUSIBLE_SPEED",
+    "severity": "warning",
+    "message": "The recording moves 2000 m in 20 s (360 km/h) between these points.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 40,
+     "lon": 6.85,
+     "lat": 45.808997054,
+     "km": 1.0000000492844128
+    },
+    "details": {
+     "lengthM": 2000.0,
+     "seconds": 20.0
+    }
+   },
+   {
+    "code": "GAP_TOO_LARGE",
+    "severity": "error",
+    "message": "Consecutive points are 2.00 km apart, more than the 1000 m limit for a continuous segment.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 40,
+     "lon": 6.85,
+     "lat": 45.808997054,
+     "km": 1.0000000492844128
+    },
+    "details": {
+     "lengthM": 2000.0,
+     "toLon": 6.85,
+     "toLat": 45.826991118,
+     "toPointIndex": 41
+    }
+   }
+  ]
+ }
+}

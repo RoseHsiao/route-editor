@@ -42,7 +42,7 @@ next-env.d.ts
 
 /lib/generated/prisma
 
-# ── TrailPlanner ──────────────────────────────────────────────
+# ── RouteEditor ──────────────────────────────────────────────
 # Keep the template, never real env files.
 !.env.example
 

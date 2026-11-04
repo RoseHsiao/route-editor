@@ -1,0 +1,49 @@
+{
+ "fixture": "fixtures/synthetic/invalid-coordinates.gpx",
+ "outcome": "FAILED",
+ "normalized": null,
+ "report": {
+  "contractVersion": 1,
+  "processorVersion": "trailworker/0.2.0",
+  "outcome": "FAILED",
+  "source": {
+   "format": "GPX",
+   "crs": {
+    "declared": null,
+    "source": "OGC:CRS84",
+    "target": "OGC:CRS84",
+    "reprojected": false
+   },
+   "metadata": {
+    "gpxVersion": "1.1",
+    "creator": "RouteEditor fixture generator",
+    "name": "SYNTHETIC Invalid coordinate",
+    "desc": "SYNTHETIC RouteEditor fixture (CC0-1.0). Not a real trail."
+   }
+  },
+  "options": {
+   "gapWarnM": 100.0,
+   "gapFailM": 1000.0
+  },
+  "summary": {
+   "pointsRead": 4
+  },
+  "lines": [],
+  "issues": [
+   {
+    "code": "INVALID_COORDINATE",
+    "severity": "error",
+    "message": "Coordinate (6.85, 95.1) is outside the valid longitude/latitude range.",
+    "location": {
+     "lineIndex": 0,
+     "partIndex": 0,
+     "pointIndex": 2
+    },
+    "details": {
+     "lon": 6.85,
+     "lat": 95.1
+    }
+   }
+  ]
+ }
+}

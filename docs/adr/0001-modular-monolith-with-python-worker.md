@@ -3,7 +3,7 @@
 **Status:** Accepted (2026-11-03)
 
 ## Context
-TrailPlanner needs an interactive web app and heavy geospatial processing (parsing, validation, geodesic distance, elevation smoothing). The Python geospatial ecosystem (gpxpy, Shapely, pyproj, GeoPandas, Rasterio) is mature but does not run well inside Vercel functions. Microservices would add operational cost the project does not need yet.
+RouteEditor needs an interactive web app and heavy geospatial processing (parsing, validation, geodesic distance, elevation smoothing). The Python geospatial ecosystem (gpxpy, Shapely, pyproj, GeoPandas, Rasterio) is mature but does not run well inside Vercel functions. Microservices would add operational cost the project does not need yet.
 
 ## Decision
 - One Next.js application with a TypeScript service layer and pure domain modules.

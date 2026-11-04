@@ -1,5 +1,5 @@
 # Independently deployable geo worker. Build from this directory:
-#   docker build -t trailplanner-geo-worker workers/geo-processing
+#   docker build -t routeeditor-geo-worker workers/geo-processing
 # Configure with environment variables (see README.md); no secrets are baked in.
 
 FROM python:3.13-slim AS base

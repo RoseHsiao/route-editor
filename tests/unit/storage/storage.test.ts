@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -36,7 +37,7 @@ describe("LocalStorageAdapter", () => {
   let adapter: LocalStorageAdapter;
 
   beforeEach(async () => {
-    root = await mkdtemp(path.join(tmpdir(), "trailplanner-storage-"));
+    root = await mkdtemp(path.join(tmpdir(), "routeeditor-storage-"));
     adapter = new LocalStorageAdapter(root);
   });
 
@@ -71,6 +72,15 @@ describe("LocalStorageAdapter", () => {
 
   it("does not offer presigned uploads", async () => {
     expect(await adapter.createUploadUrl()).toBeNull();
+  });
+
+  it("reports size and SHA-256 of stored bytes", async () => {
+    await adapter.put("uploads/u1/f1.gpx", Buffer.from("<gpx/>"), { contentType: "application/gpx+xml" });
+    expect(await adapter.head("uploads/u1/f1.gpx")).toEqual({
+      sizeBytes: 6,
+      sha256: createHash("sha256").update("<gpx/>").digest("hex"),
+    });
+    expect(await adapter.head("uploads/u1/missing.gpx")).toBeNull();
   });
 });
 
@@ -118,14 +128,35 @@ describe("S3StorageAdapter", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("creates presigned upload URLs bound to the content type", async () => {
+  it("creates presigned upload URLs bound to the content type and checksum", async () => {
     const { adapter } = adapterWith(async () => ({}));
+    const sha256 = createHash("sha256").update("<gpx/>").digest("hex");
     const upload = await adapter.createUploadUrl("uploads/u1/f1.gpx", {
       contentType: "application/gpx+xml",
       expiresInSeconds: 300,
+      sha256,
+      sizeBytes: 6,
     });
+    const checksum = Buffer.from(sha256, "hex").toString("base64");
     expect(upload.url).toContain("test-bucket");
     expect(upload.url).toContain("X-Amz-Expires=300");
-    expect(upload.headers).toEqual({ "Content-Type": "application/gpx+xml" });
+    expect(decodeURIComponent(new URL(upload.url).searchParams.get("X-Amz-SignedHeaders") ?? "")).toContain(
+      "x-amz-checksum-sha256",
+    );
+    expect(upload.headers).toEqual({ "Content-Type": "application/gpx+xml", "x-amz-checksum-sha256": checksum });
+  });
+
+  it("reads the full-object SHA-256 from S3 as hex", async () => {
+    const sha256 = createHash("sha256").update("<gpx/>").digest("hex");
+    const { adapter } = adapterWith(async () => ({
+      ContentLength: 6,
+      ChecksumSHA256: Buffer.from(sha256, "hex").toString("base64"),
+    }));
+    expect(await adapter.head("uploads/u1/f1.gpx")).toEqual({ sizeBytes: 6, sha256 });
+  });
+
+  it("does not treat a multipart composite checksum as the file's SHA-256", async () => {
+    const { adapter } = adapterWith(async () => ({ ContentLength: 6, ChecksumSHA256: "abc=-3" }));
+    expect(await adapter.head("uploads/u1/f1.gpx")).toEqual({ sizeBytes: 6, sha256: null });
   });
 });

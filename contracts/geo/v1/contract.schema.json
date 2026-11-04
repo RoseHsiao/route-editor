@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://routeeditor.invalid/contracts/geo/v1/contract.schema.json",
+  "title": "RouteEditor geo processing contract, version 1",
+  "description": "Shapes exchanged between the Python geo worker and the TypeScript app. Structural rules are here; cross-field rules that JSON Schema cannot express are listed under x-semanticRules and implemented by both languages.",
+  "x-semanticRules": {
+    "profile": [
+      "distancesKm[0] = 0 and distancesKm is non-decreasing",
+      "distancesKm[i] = distancesKm[i-1] only when i is in segmentStartIndices",
+      "segmentStartIndices starts with 0, is strictly increasing, and every index is < len(distancesKm)",
+      "elevationComplete = (len(elevationsM) > 0); when complete, len(elevationsM) = len(distancesKm)",
+      "elevationSource = NONE exactly when elevationComplete is false (DEM is not produced in v1)"
+    ],
+    "segment": [
+      "pointCount = len(coordinates)",
+      "hasElevation = (elevationPointCount = pointCount) = every coordinate has 3 values",
+      "ascentM and descentM are null unless hasElevation"
+    ],
+    "normalizedImport": ["exactly one line has isMain = true", "report.outcome = SUCCEEDED"],
+    "validationReport": [
+      "outcome = FAILED exactly when at least one issue has severity error"
+    ]
+  },
+  "$defs": {
+    "nonNegativeInteger": { "type": "integer", "minimum": 0 },
+    "issueCode": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]*$" },
+    "nullableText": { "type": ["string", "null"] },
+    "nullableNonNegative": { "type": ["number", "null"], "minimum": 0 },
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "lineIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "partIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "pointIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "waypointIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "featureIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "lon": { "type": "number", "minimum": -180, "maximum": 180 },
+        "lat": { "type": "number", "minimum": -90, "maximum": 90 },
+        "km": { "type": "number", "minimum": 0 }
+      }
+    },
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "severity", "message", "location", "details"],
+      "properties": {
+        "code": { "$ref": "#/$defs/issueCode" },
+        "severity": { "enum": ["error", "warning", "info"] },
+        "message": { "type": "string", "minLength": 1 },
+        "location": { "oneOf": [{ "$ref": "#/$defs/location" }, { "type": "null" }] },
+        "details": { "type": "object" }
+      }
+    },
+    "crs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declared", "source", "target", "reprojected"],
+      "properties": {
+        "declared": { "$ref": "#/$defs/nullableText" },
+        "source": { "type": "string", "minLength": 1 },
+        "target": { "const": "OGC:CRS84" },
+        "reprojected": { "type": "boolean" }
+      }
+    },
+    "importOptions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gapWarnM", "gapFailM"],
+      "properties": {
+        "gapWarnM": { "type": "number", "exclusiveMinimum": 0 },
+        "gapFailM": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "sourceKind": { "enum": ["TRACK", "ROUTE", "LINE"] },
+    "lineSummary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineIndex", "sourceKind", "name", "isMain", "distanceKm", "segments", "elevationComplete", "ascentM", "descentM"],
+      "properties": {
+        "lineIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "sourceKind": { "$ref": "#/$defs/sourceKind" },
+        "name": { "type": "string", "minLength": 1 },
+        "isMain": { "type": "boolean" },
+        "distanceKm": { "type": "number", "minimum": 0 },
+        "segments": { "type": "integer", "minimum": 1 },
+        "elevationComplete": { "type": "boolean" },
+        "ascentM": { "$ref": "#/$defs/nullableNonNegative" },
+        "descentM": { "$ref": "#/$defs/nullableNonNegative" }
+      }
+    },
+    "validationReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractVersion", "processorVersion", "outcome", "source", "options", "summary", "lines", "issues"],
+      "properties": {
+        "contractVersion": { "const": 1 },
+        "processorVersion": { "type": "string", "minLength": 1 },
+        "outcome": { "enum": ["SUCCEEDED", "FAILED"] },
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["format"],
+          "properties": {
+            "format": { "enum": ["GPX", "GEOJSON"] },
+            "crs": { "$ref": "#/$defs/crs" },
+            "metadata": { "type": "object" }
+          }
+        },
+        "options": { "$ref": "#/$defs/importOptions" },
+        "summary": { "type": "object" },
+        "lines": { "type": "array", "items": { "$ref": "#/$defs/lineSummary" } },
+        "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } }
+      }
+    },
+    "position": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 3,
+      "prefixItems": [
+        { "type": "number", "minimum": -180, "maximum": 180 },
+        { "type": "number", "minimum": -90, "maximum": 90 },
+        { "type": "number" }
+      ]
+    },
+    "segment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourcePartIndex", "pointCount", "elevationPointCount", "hasElevation", "distanceKm", "ascentM", "descentM", "coordinates"],
+      "properties": {
+        "sourcePartIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "pointCount": { "type": "integer", "minimum": 2 },
+        "elevationPointCount": { "$ref": "#/$defs/nonNegativeInteger" },
+        "hasElevation": { "type": "boolean" },
+        "distanceKm": { "type": "number", "minimum": 0 },
+        "ascentM": { "$ref": "#/$defs/nullableNonNegative" },
+        "descentM": { "$ref": "#/$defs/nullableNonNegative" },
+        "coordinates": { "type": "array", "minItems": 2, "items": { "$ref": "#/$defs/position" } }
+      }
+    },
+    "processingParams": {
+      "type": "object",
+      "required": ["distance", "resampling", "smoothing", "ascent"],
+      "properties": {
+        "distance": {
+          "type": "object",
+          "required": ["method", "ellipsoid"],
+          "properties": { "method": { "const": "geodesic" }, "ellipsoid": { "const": "WGS84" } }
+        },
+        "resampling": {
+          "type": "object",
+          "required": ["method", "spacingM", "includeSegmentEnd"],
+          "properties": {
+            "method": { "const": "linear_interpolation" },
+            "spacingM": { "type": "number", "exclusiveMinimum": 0 },
+            "includeSegmentEnd": { "const": true }
+          }
+        },
+        "smoothing": {
+          "type": "object",
+          "required": ["method", "windowSamples", "edges"],
+          "properties": {
+            "method": { "const": "centered_moving_average" },
+            "windowSamples": { "type": "integer", "minimum": 1 },
+            "edges": { "const": "shrink_window" }
+          }
+        },
+        "ascent": {
+          "type": "object",
+          "required": ["method", "thresholdM", "acrossSegmentBreaks"],
+          "properties": {
+            "method": { "const": "sum_of_positive_differences" },
+            "thresholdM": { "type": "number", "minimum": 0 },
+            "acrossSegmentBreaks": { "const": false }
+          }
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schemaVersion", "sampleSpacingM", "distancesKm", "elevationsM", "elevationSource", "elevationComplete", "segmentStartIndices", "processingParams"],
+      "properties": {
+        "schemaVersion": { "const": 1 },
+        "sampleSpacingM": { "type": "number", "exclusiveMinimum": 0 },
+        "distancesKm": { "type": "array", "minItems": 2, "items": { "type": "number", "minimum": 0 } },
+        "elevationsM": { "type": "array", "items": { "type": "number" } },
+        "elevationSource": { "enum": ["SOURCE_FILE", "DEM", "NONE"] },
+        "elevationComplete": { "type": "boolean" },
+        "segmentStartIndices": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/nonNegativeInteger" } },
+        "processingParams": { "$ref": "#/$defs/processingParams" }
+      }
+    },
+    "line": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceIndex", "sourceKind", "name", "isMain", "sourceMetadata", "distanceKm", "ascentM", "descentM", "elevationComplete", "segments", "profile"],
+      "properties": {
+        "sourceIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "sourceKind": { "$ref": "#/$defs/sourceKind" },
+        "name": { "type": "string", "minLength": 1 },
+        "isMain": { "type": "boolean" },
+        "sourceMetadata": { "type": "object" },
+        "distanceKm": { "type": "number", "minimum": 0 },
+        "ascentM": { "$ref": "#/$defs/nullableNonNegative" },
+        "descentM": { "$ref": "#/$defs/nullableNonNegative" },
+        "elevationComplete": { "type": "boolean" },
+        "segments": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/segment" } },
+        "profile": { "$ref": "#/$defs/profile" }
+      }
+    },
+    "waypoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sequence", "sourceIndex", "name", "description", "comment", "symbol", "sourceType", "longitude", "latitude", "elevationM", "sourceMetadata"],
+      "properties": {
+        "sequence": { "$ref": "#/$defs/nonNegativeInteger" },
+        "sourceIndex": { "$ref": "#/$defs/nonNegativeInteger" },
+        "name": { "$ref": "#/$defs/nullableText" },
+        "description": { "$ref": "#/$defs/nullableText" },
+        "comment": { "$ref": "#/$defs/nullableText" },
+        "symbol": { "$ref": "#/$defs/nullableText" },
+        "sourceType": { "$ref": "#/$defs/nullableText" },
+        "longitude": { "type": "number", "minimum": -180, "maximum": 180 },
+        "latitude": { "type": "number", "minimum": -90, "maximum": 90 },
+        "elevationM": { "type": ["number", "null"] },
+        "sourceMetadata": { "type": "object" }
+      }
+    },
+    "normalizedImport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contractVersion", "processorVersion", "lines", "waypoints", "report"],
+      "properties": {
+        "contractVersion": { "const": 1 },
+        "processorVersion": { "type": "string", "minLength": 1 },
+        "lines": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/line" } },
+        "waypoints": { "type": "array", "items": { "$ref": "#/$defs/waypoint" } },
+        "report": { "$ref": "#/$defs/validationReport" }
+      }
+    },
+    "jobError": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message", "details", "retryable"],
+      "properties": {
+        "code": { "$ref": "#/$defs/issueCode" },
+        "message": { "type": "string", "minLength": 1 },
+        "details": { "type": "object" },
+        "retryable": { "type": "boolean" }
+      }
+    },
+    "jobErrors": { "type": "array", "items": { "$ref": "#/$defs/jobError" } }
+  }
+}
